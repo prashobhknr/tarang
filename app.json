@@ -56,8 +56,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-asset",
-      "react-native-auth0"
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
