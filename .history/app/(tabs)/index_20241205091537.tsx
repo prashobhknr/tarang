@@ -5,7 +5,6 @@ import { Asset } from 'expo-asset';
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
-  const [key, setKey] = useState('loading');
   const [localHtmlUri, setLocalHtmlUri] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -25,11 +24,7 @@ export default function Index() {
   };
 
   const handleLoadEnd = () => {
-    if(loading){
-      setLoading(false); 
-      setKey('loaded');
-    }
-    
+    setLoading(false); 
   };
 
   return (
@@ -38,7 +33,6 @@ export default function Index() {
         <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
       )}
       <WebView
-        key={key}
         source={isError && localHtmlUri ? { uri: localHtmlUri } : { uri: 'https://tarangschool.com' }} 
         cacheEnabled={true}
         cacheMode="LOAD_CACHE_ELSE_NETWORK"
