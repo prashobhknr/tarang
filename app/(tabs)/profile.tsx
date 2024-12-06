@@ -1,22 +1,42 @@
-import React from 'react';
-import { Alert, Button, Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { useAuth0 } from 'react-native-auth0';
+import React, { useEffect } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { useAuth0, User } from 'react-native-auth0'; // Import the User type
+import Button from '@/components/Button'; // Import the updated Button
+import { db } from '@/firebase'; // Import Firebase DB
+import { doc, setDoc } from 'firebase/firestore'; // Import necessary Firestore methods
 
 export default function ProfileScreen() {
-  const { authorize, clearSession, user, error, getCredentials, isLoading } = useAuth0();
+  const { authorize, clearSession, user, error, isLoading } = useAuth0();
+
+  const saveUserToFirestore = async (user: any) => {
+    try {
+      const userDocRef = doc(db, 'users', user.email); 
+  
+      const userData = {
+        name: user.name,
+        email: user.email,
+        picture: user.picture,
+        role: 'student', 
+      };
+  
+
+      await setDoc(userDocRef, userData, { merge: true });
+  
+      console.log('User saved/updated in Firestore successfully!');
+    } catch (error) {
+      console.error('Error saving/updating user in Firestore: ', error);
+    }
+  };
 
   const onLogin = async () => {
     try {
       await authorize({
         redirectUrl: 'com.auth0.tarang.auth0://dev-ekunvd3grax376fx.eu.auth0.com/ios/com.auth0.tarang/callback',
       });
-      let credentials = await getCredentials();
     } catch (e) {
       console.log(e);
     }
   };
-
-  const loggedIn = user !== undefined && user !== null;
 
   const onLogout = async () => {
     try {
@@ -25,6 +45,13 @@ export default function ProfileScreen() {
       console.log('Log out cancelled');
     }
   };
+
+  // Save user data to Firestore when user logs in
+  useEffect(() => {
+    if (user) {
+      saveUserToFirestore(user); // Call save function after user logs in
+    }
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -39,30 +66,20 @@ export default function ProfileScreen() {
       {/* Profile Details */}
       {user ? (
         <View style={styles.profileCard}>
-          {/* Profile Picture */}
           {user.picture && (
             <Image
               source={{ uri: user.picture }}
               style={styles.profilePicture}
             />
           )}
-          
-          {/* User Details */}
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.email}>{user.email}</Text>
-          
-          {/* Log Out Button */}
-          <TouchableOpacity style={styles.button} onPress={onLogout}>
-            <Text style={styles.buttonText}>Log Out</Text>
-          </TouchableOpacity>
+          <Button label="Log Out" theme="secondary" onPress={onLogout} icon="sign-out" />
         </View>
       ) : (
         <>
-          {/* If not logged in, show message */}
           <Text style={styles.message}>You are not logged in. Please log in to view your profile.</Text>
-          <TouchableOpacity style={styles.button} onPress={onLogin}>
-            <Text style={styles.buttonText}>Log In</Text>
-          </TouchableOpacity>
+          <Button label="Log In" theme="primary" onPress={onLogin} icon="sign-in" />
         </>
       )}
       
@@ -77,13 +94,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1', // Light background for a clean look
+    backgroundColor: '#f1f1f1',
     padding: 20,
   },
   loadingText: {
     fontSize: 18,
     color: '#555',
     fontWeight: 'bold',
+    marginTop: 10, // Add margin to separate from the loading indicator
   },
   profileCard: {
     backgroundColor: '#fff',
@@ -116,24 +134,10 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 18,
-    color: '#ff6347', // Red for a clear action prompt
+    color: '#ff6347',
     marginBottom: 20,
     textAlign: 'center',
     fontWeight: '500',
-  },
-  button: {
-    backgroundColor: '#007bff', // Blue color for buttons
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 30,
-    marginTop: 20,
-    alignItems: 'center',
-    width: '100%',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   error: {
     color: 'red',
