@@ -1,38 +1,103 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { useAuth0, User } from 'react-native-auth0'; // Import the User type
 import Button from '@/components/Button'; // Import the updated Button
 import { db } from '@/firebase'; // Import Firebase DB
-import { doc, setDoc } from 'firebase/firestore'; // Import necessary Firestore methods
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import CircleButton from '@/components/CircleButton';
+import ItemPicker from '@/components/Model';
+import { Picker } from '@react-native-picker/picker';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
+  const [selectRole, setSelectRole] = useState(true);
+  const [userRole, setUserRole] = useState('');
+  const [studentEmail, setStudentEmail] = useState('');
+  const [students, setStudents] = useState<{ label: string; value: string }[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
 
+  // Fetch all students with the role 'student'
+  const fetchStudents = async () => {
+    try {
+      const q = query(collection(db, 'users'), where('role', '==', 'student'));
+      const studentsSnapshot = await getDocs(q);
+      const studentList = studentsSnapshot.docs.map((doc) => ({
+        label: doc.data().email,
+        value: doc.data().email,
+      }));
+      setStudents(studentList);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
+
+  // Fetch the current user's role and connected student, if not already fetched
+  const fetchUserRole = async () => {
+    try {
+      if (user?.email) {
+        console.log('fetching user ', user?.email)
+        const userDocRef = doc(db, 'users', user.email);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserRole(userData.role || '');
+          setStudentEmail(userData.student || '');
+        } else {
+          saveUserToFirestore(user);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
+
+  // Update the user role and associated student in Firestore
+  const updateUserRole = async () => {
+    try {
+      if (user?.email) {
+        const userDocRef = doc(db, 'users', user.email);
+        const updatedData = {
+          role: userRole,
+          student: userRole === 'parent' ? studentEmail : '',
+        };
+        await setDoc(userDocRef, updatedData, { merge: true });
+        console.log('User role and student updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating user role or student: ', error);
+    }
+  };
+
+  //save user when initial saving
   const saveUserToFirestore = async (user: any) => {
     try {
-      const userDocRef = doc(db, 'users', user.email); 
-  
+      const userDocRef = doc(db, 'users', user.email);
+
       const userData = {
         name: user.name,
         email: user.email,
-        picture: user.picture,
-        role: 'student', 
+        picture: user.picture
       };
-  
-
       await setDoc(userDocRef, userData, { merge: true });
-  
       console.log('User saved/updated in Firestore successfully!');
     } catch (error) {
       console.error('Error saving/updating user in Firestore: ', error);
     }
   };
 
+  const onModalOpen = () => {
+    setIsModalVisible(true);
+    setSelectRole(true);
+  };
+
+  const onModalClose = () => {
+    setIsModalVisible(false);
+    updateUserRole()
+  };
+
   const onLogin = async () => {
     try {
-      await authorize({
-        redirectUrl: 'com.auth0.tarang.auth0://dev-ekunvd3grax376fx.eu.auth0.com/ios/com.auth0.tarang/callback',
-      });
+      await authorize();
     } catch (e) {
       console.log(e);
     }
@@ -40,18 +105,29 @@ export default function ProfileScreen() {
 
   const onLogout = async () => {
     try {
+      setStudentEmail('');
+      setUserRole('')
       await clearSession();
     } catch (e) {
       console.log('Log out cancelled');
     }
   };
 
-  // Save user data to Firestore when user logs in
+  // Fetch or Save user data to Firestore when user logs in
   useEffect(() => {
     if (user) {
-      saveUserToFirestore(user); // Call save function after user logs in
+      //  console.log('new user logged in', user)
+      if (!userRole)
+        fetchUserRole()
     }
   }, [user]);
+
+  // Fetch available students when role update to parent
+  useEffect(() => {
+    if (!selectRole && userRole === 'parent' && students.length === 0) {
+      fetchStudents()
+    }
+  }, [selectRole]);
 
   if (isLoading) {
     return (
@@ -63,7 +139,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Profile Details */}
       {user ? (
         <View style={styles.profileCard}>
           {user.picture && (
@@ -74,7 +149,19 @@ export default function ProfileScreen() {
           )}
           <Text style={styles.name}>{user.name}</Text>
           <Text style={styles.email}>{user.email}</Text>
+          {userRole && (
+            <View>
+              <Text style={styles.studentEmailText}>Role: {userRole}</Text>
+            </View>
+          )}
+          {studentEmail && (
+            <View>
+              <Text style={styles.studentEmailText}>Student: {studentEmail}</Text>
+            </View>
+          )}
+          <CircleButton onPress={onModalOpen} />
           <Button label="Log Out" theme="secondary" onPress={onLogout} icon="sign-out" />
+
         </View>
       ) : (
         <>
@@ -82,7 +169,47 @@ export default function ProfileScreen() {
           <Button label="Log In" theme="primary" onPress={onLogin} icon="sign-in" />
         </>
       )}
-      
+
+      <ItemPicker title={selectRole ? 'Choose a role' : 'Select connected student'} isVisible={isModalVisible} onClose={onModalClose}>
+        <View>
+          <Picker
+            key={'rolePicker'}
+            style={styles.picker}
+            itemStyle={styles.pickerItem}
+            selectedValue={selectRole ? userRole : studentEmail}
+            onValueChange={(itemValue, itemIndex) => {
+              if (selectRole) {
+                
+                if (itemValue === 'parent'){
+                  setUserRole(itemValue)
+                  setSelectRole(false);
+                }
+                else if (itemValue === 'student'){
+                  setUserRole(itemValue)
+                  setStudentEmail('');
+                }
+                  
+              }
+              else {
+                setStudentEmail(itemValue)
+              }
+            }}>
+            {selectRole && (<Picker.Item label="None" value="" />)}
+            {selectRole && (<Picker.Item label="Student" value="student" />)}
+            {selectRole && (<Picker.Item label="Parent" value="parent" />)}
+            {/* Student List Items */}
+            {!selectRole &&
+              students.map((student) => (
+                <Picker.Item
+                  key={student.value}
+                  label={student.label}
+                  value={student.value}
+                />
+              ))}
+           
+          </Picker>
+        </View>
+      </ItemPicker>
       {/* Show errors */}
       {error && <Text style={styles.error}>{error.message}</Text>}
     </View>
@@ -144,5 +271,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 14,
     fontWeight: '500',
+  },
+  roleText: {
+    fontSize: 18,
+    color: '#333',
+    marginTop: 10,
+  },
+  studentEmailText: {
+    fontSize: 16,
+    color: '#333',
+    marginTop: 10,
+  },
+  picker: {
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  pickerItem: {
+    color: "white",
+    fontSize: 16,
   },
 });

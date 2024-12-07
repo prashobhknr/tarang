@@ -1,5 +1,5 @@
 import { View, Pressable, StyleSheet } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 type Props = {
   onPress: () => void;
@@ -9,7 +9,7 @@ export default function CircleButton({ onPress }: Props) {
   return (
     <View style={styles.circleButtonContainer}>
       <Pressable style={styles.circleButton} onPress={onPress}>
-        <MaterialIcons name="add" size={38} color="#25292e" />
+      <FontAwesome name="edit" size={24} color="black" />
       </Pressable>
     </View>
   );
@@ -17,19 +17,26 @@ export default function CircleButton({ onPress }: Props) {
 
 const styles = StyleSheet.create({
   circleButtonContainer: {
-    width: 84,
-    height: 84,
-    marginHorizontal: 60,
-    borderWidth: 4,
-    borderColor: '#ffd33d',
-    borderRadius: 42,
+    marginTop:5,
+    width: 50,
+    height: 50,
+    borderWidth: 3,
+    borderColor: '#ffd33d', // Golden border
+    borderRadius: 25,
     padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   circleButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 42,
-    backgroundColor: '#fff',
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0', // Light gray shaded background
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3, // Adds shadow for Android
   },
 });
