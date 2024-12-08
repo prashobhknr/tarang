@@ -1,24 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { useAuth0, User } from 'react-native-auth0'; // Import the User type
-import Button from '@/components/Button'; // Import the updated Button
+import Button from '@/components/Button'; 
 import { db } from '@/firebase'; // Import Firebase DB
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import CircleButton from '@/components/CircleButton';
 import ItemPicker from '@/components/Model';
 import { Picker } from '@react-native-picker/picker';
+import { useUser } from '@/context/UserContext'; 
+const { v4: uuidv4 } = require('uuid');
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
   const [selectRole, setSelectRole] = useState(true);
-  const [userRole, setUserRole] = useState('');
-  const [studentEmail, setStudentEmail] = useState('');
   const [students, setStudents] = useState<{ label: string; value: string }[]>([]);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+
+  const { setUserData, setUserRole, setStudentEmail } = useUser();
+  const { userData, userRole, studentEmail } = useUser();
 
   // Fetch all students with the role 'student'
   const fetchStudents = async () => {
     try {
+      console.log('fetching students ', user?.email)
       const q = query(collection(db, 'users'), where('role', '==', 'student'));
       const studentsSnapshot = await getDocs(q);
       const studentList = studentsSnapshot.docs.map((doc) => ({
@@ -42,6 +46,8 @@ export default function ProfileScreen() {
           const userData = userDoc.data();
           setUserRole(userData.role || '');
           setStudentEmail(userData.student || '');
+          setUserData(userData)
+          console.log('Got user with profile', userData)
         } else {
           saveUserToFirestore(user);
         }
@@ -55,6 +61,7 @@ export default function ProfileScreen() {
   const updateUserRole = async () => {
     try {
       if (user?.email) {
+        console.log('update user role', user?.email)
         const userDocRef = doc(db, 'users', user.email);
         const updatedData = {
           role: userRole,
@@ -71,13 +78,19 @@ export default function ProfileScreen() {
   //save user when initial saving
   const saveUserToFirestore = async (user: any) => {
     try {
+      console.log('creaing a new user doc',user)
       const userDocRef = doc(db, 'users', user.email);
+      const callbackId = uuidv4().replace(/-/g, '').toUpperCase();
 
       const userData = {
         name: user.name,
         email: user.email,
-        picture: user.picture
+        picture: user.picture,
+        callbackId: callbackId,
+        balance: 100,
+        transactions: []
       };
+      console.log('save user ', user?.email)
       await setDoc(userDocRef, userData, { merge: true });
       console.log('User saved/updated in Firestore successfully!');
     } catch (error) {
