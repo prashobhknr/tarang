@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { useAuth0, User } from 'react-native-auth0'; // Import the User type
 import Button from '@/components/Button'; 
-import { db } from '@/firebase'; // Import Firebase DB
+import { db } from '@/firebase'; 
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import CircleButton from '@/components/CircleButton';
 import ItemPicker from '@/components/Model';
 import { Picker } from '@react-native-picker/picker';
 import { useUser } from '@/context/UserContext'; 
-const { v4: uuidv4 } = require('uuid');
+import uuid from 'react-native-uuid';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
@@ -80,7 +80,7 @@ export default function ProfileScreen() {
     try {
       console.log('creaing a new user doc',user)
       const userDocRef = doc(db, 'users', user.email);
-      const callbackId = uuidv4().replace(/-/g, '').toUpperCase();
+      const callbackId = uuid.v4().replace(/-/g, '').toUpperCase();
 
       const userData = {
         name: user.name,
@@ -92,6 +92,7 @@ export default function ProfileScreen() {
       };
       console.log('save user ', user?.email)
       await setDoc(userDocRef, userData, { merge: true });
+      setUserData(userData);
       console.log('User saved/updated in Firestore successfully!');
     } catch (error) {
       console.error('Error saving/updating user in Firestore: ', error);
@@ -119,7 +120,8 @@ export default function ProfileScreen() {
   const onLogout = async () => {
     try {
       setStudentEmail('');
-      setUserRole('')
+      setUserRole('');
+      setUserData('');
       await clearSession();
     } catch (e) {
       console.log('Log out cancelled');
