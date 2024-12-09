@@ -17,8 +17,6 @@ export default function PaymentScreen() {
 
     // Fetch the current user's role and connected student, if not already fetched
     const fetchUserRole = async () => {
-        if (isLoading) return;
-        setIsLoading(true);
         try {
             if (userData?.email) {
                 console.log('fetching user ', userData?.email)
@@ -38,6 +36,8 @@ export default function PaymentScreen() {
     };
 
     const handlePayment = async () => {
+        if (isLoading) return;
+        setIsLoading(true);
         const paymentRequestData = {
             amount: userData?.balance || 0,
             message: 'Tarang payment',
@@ -71,6 +71,7 @@ export default function PaymentScreen() {
                 setTimeout(async () => {
                     console.log('Waiting for 5 seconds before fetching user role...');
                     await fetchUserRole(); // Call your fetchUserRole method after 5 seconds
+                    setIsLoading(false);
                 }, 5000);
             } else {
                 const errorData = await response.json();
@@ -79,6 +80,7 @@ export default function PaymentScreen() {
                     'Payment Failed',
                     `There was an error processing your payment. Please try again.`
                 );
+                setIsLoading(false);
             }
         } catch (error) {
             console.error('Error initiating payment:', error);
@@ -86,9 +88,6 @@ export default function PaymentScreen() {
                 'Error',
                 'An unexpected error occurred while processing your payment. Please try again later.'
             );
-        }
-        finally {
-            setIsLoading(false);
         }
     };
 

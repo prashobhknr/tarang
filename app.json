@@ -60,6 +60,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ca3b8296-e573-42af-9b7f-578a638e37fa"
+      }
+    },
+    "owner": "prashobhknr"
   }
 }

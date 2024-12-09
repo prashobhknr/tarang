@@ -39,6 +39,7 @@
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
       </intent-filter>
     </activity>
   </application>

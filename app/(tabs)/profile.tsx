@@ -9,6 +9,7 @@ import ItemPicker from '@/components/Model';
 import { Picker } from '@react-native-picker/picker';
 import { useUser } from '@/context/UserContext'; 
 import uuid from 'react-native-uuid';
+import { TextInput } from 'react-native';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
@@ -187,20 +188,18 @@ export default function ProfileScreen() {
 
       <ItemPicker title={selectRole ? 'Choose a role' : 'Select connected student'} isVisible={isModalVisible} onClose={onModalClose}>
         <View>
-          <Picker
+        {true && (<Picker
             key={'rolePicker'}
             style={styles.picker}
             itemStyle={styles.pickerItem}
             selectedValue={selectRole ? userRole : studentEmail}
             onValueChange={(itemValue, itemIndex) => {
               if (selectRole) {
-                
+                setUserRole(itemValue)
                 if (itemValue === 'parent'){
-                  setUserRole(itemValue)
                   setSelectRole(false);
                 }
                 else if (itemValue === 'student'){
-                  setUserRole(itemValue)
                   setStudentEmail('');
                 }
                   
@@ -212,7 +211,7 @@ export default function ProfileScreen() {
             {selectRole && (<Picker.Item label="None" value="" />)}
             {selectRole && (<Picker.Item label="Student" value="student" />)}
             {selectRole && (<Picker.Item label="Parent" value="parent" />)}
-            {/* Student List Items */}
+
             {!selectRole &&
               students.map((student) => (
                 <Picker.Item
@@ -222,7 +221,18 @@ export default function ProfileScreen() {
                 />
               ))}
            
-          </Picker>
+          </Picker>)}
+          {/* {(
+            <TextInput
+            style={styles.textInput}
+            placeholder="Enter student email"
+            
+            onChangeText={(text) => setStudentEmail(text)}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          )} */}
+
         </View>
       </ItemPicker>
       {/* Show errors */}
@@ -304,5 +314,15 @@ const styles = StyleSheet.create({
   pickerItem: {
     color: "white",
     fontSize: 16,
+  },
+  textInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginTop: 20,
+    fontSize: 16,
+    backgroundColor: '#fff',
   },
 });
