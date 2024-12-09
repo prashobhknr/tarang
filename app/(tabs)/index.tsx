@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
+import { useTheme, ActivityIndicator } from 'react-native-paper';
 
 export default function Index() {
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [key, setKey] = useState('loading');
   const [localHtmlUri, setLocalHtmlUri] = useState<string | null>(null);
@@ -33,11 +35,11 @@ export default function Index() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {loading && !isError && (
-        <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+        <ActivityIndicator animating={true} color={colors.primary} size={"large"}/>
       )}
-      <WebView
+       <WebView
         key={key}
         source={isError && localHtmlUri ? { uri: localHtmlUri } : { uri: 'https://tarangschool.com' }} 
         cacheEnabled={true}
@@ -57,14 +59,6 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#25292e',
-  },
-  loader: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -25,
-    marginLeft: -25,
-  },
+    flex: 1
+  }
 });
