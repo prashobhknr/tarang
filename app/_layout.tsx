@@ -24,7 +24,7 @@ const theme = {
 
 export default function RootLayout() {
   return (
-    <Auth0Provider domain={"dev-ekunvd3grax376fx.eu.auth0.com"} clientId={"YRB9tEjIvJcVSWTOlBgtOWkoTB0niK5e"}>
+    <Auth0Provider domain={"tarangschool.eu.auth0.com"} clientId={"CTXGH6NyrWAEQJJ49NC2oldx3DDlqElc"}>
       <UserProvider>
         <PaperProvider theme={theme}>
           <GestureHandlerRootView style={{ flex: 1 }}>

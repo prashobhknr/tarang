@@ -43,7 +43,7 @@
       [
         "react-native-auth0",
         {
-          "domain": "dev-ekunvd3grax376fx.eu.auth0.com"
+          "domain": "tarangschool.eu.auth0.com"
         }
       ],
       "expo-router",

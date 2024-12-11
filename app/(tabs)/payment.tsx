@@ -48,7 +48,7 @@ export default function PaymentScreen() {
             console.log('Initiating payment with data:', paymentRequestData);
 
             const response = await fetch(
-                'https://us-central1-tarang-app.cloudfunctions.net/createPaymentRequest',
+                'https://createpaymentrequest-znczgaf7da-uc.a.run.app',
                 {
                     method: 'POST',
                     headers: {
