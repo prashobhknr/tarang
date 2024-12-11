@@ -1,113 +1,85 @@
-import { StyleSheet, View, Pressable, Text, Image, ActivityIndicator } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import React from 'react';
+import { StyleSheet, Image, ActivityIndicator, View } from 'react-native';
+import { Button as PaperButton, useTheme } from 'react-native-paper';
 
 type Props = {
   label: string;
   theme?: 'primary' | 'secondary' | 'swish'; // Added 'swish' theme
-  icon?: keyof typeof FontAwesome.glyphMap; // Restrict icon to FontAwesome valid icon names
+  iconName?: string | null; // Accept FontAwesome icon name or null
   onPress?: () => void;
   disabled?: boolean; // Prop to disable the button
   isLoading?: boolean; // Prop to show loading spinner
 };
 
-export default function Button({ label, theme, icon, onPress, disabled, isLoading }: Props) {
-  // Determine styles based on theme
-  const buttonStyle =
-    theme === 'primary'
-      ? styles.primaryButton
-      : theme === 'secondary'
-      ? styles.secondaryButton
-      : theme === 'swish'
-      ? styles.swishButton
-      : styles.defaultButton;
+export default function Button({ label, theme, iconName, onPress, disabled, isLoading }: Props) {
+  const { colors } = useTheme();
 
-  const textStyle =
-    theme === 'primary'
-      ? styles.primaryButtonLabel
-      : theme === 'secondary'
-      ? styles.secondaryButtonLabel
-      : theme === 'swish'
-      ? styles.swishButtonLabel
-      : styles.defaultButtonLabel;
-
-  const iconColor = theme === 'primary' || theme === 'swish' ? '#25292e' : '#fff';
+  const isSwish = theme === 'swish';
+  const textColor = isSwish ? '#5AC9FA' : theme === 'primary' ? colors.onPrimaryContainer : colors.onPrimaryContainer;
+  const backgroundColor = isSwish ? 'transparent' : theme === 'primary' ? colors.primaryContainer : colors.primary;
+  const borderColor = isSwish ? '#5AC9FA' : 'transparent';
 
   return (
-    <View style={styles.buttonContainer}>
-      <Pressable
-        style={[styles.button, buttonStyle, disabled || isLoading ? styles.disabledButton : null]} // Disable styles
+    <View style={{ marginTop: 5 }}>
+      <PaperButton
+        key={`button-${theme}`} // Ensures re-render on theme change
+        mode={isSwish ? 'outlined' : 'contained'} // Mode for Swish is outlined
         onPress={onPress}
-        disabled={disabled || isLoading} // Disable button when loading or manually disabled
+        disabled={disabled || isLoading}
+        contentStyle={[
+          styles.content,
+          {
+            backgroundColor, // Dynamic background color
+            borderWidth: isSwish ? 1 : 0,
+            borderColor: isSwish ? borderColor : undefined, // Apply border for Swish
+          },
+        ]}
+        labelStyle={[
+          styles.label,
+          { color: textColor }, // Dynamic text color
+        ]}
+        style={[
+          isSwish && {
+            borderRadius: 18, // Ensure consistent border radius
+          },
+        ]}
+        icon={
+          isLoading
+            ? () => <ActivityIndicator size="small" color={textColor} />
+            : isSwish
+              ? () => (
+                <Image
+                  source={require('@/assets/images/swish.png')}
+                  style={[styles.imageIcon, { marginRight: 8 }]} // Add spacing between icon and text
+                  resizeMode="contain"
+                />
+              )
+              : iconName!
+        }
       >
-        {/* For Swish theme, include the Swish logo */}
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#5AC9FA" />
-        ) : theme === 'swish' ? (
-          <Image source={require('@/assets/images/swish.png')} style={styles.imageIcon} resizeMode="contain" />
-        ) : (
-          icon && <FontAwesome name={icon} size={20} color={iconColor} style={styles.buttonIcon} />
-        )}
-        <Text style={[styles.buttonLabel, textStyle]}>{isLoading ? 'Processing Payment...' : label}</Text>
-      </Pressable>
+        {!isLoading && label}
+      </PaperButton>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  buttonContainer: {
-    width: '80%', // Make the button responsive with percentage width
-    marginVertical: 10,
-    alignItems: 'center',
-  },
-  button: {
-    borderRadius: 18,
-    width: '100%',
-    height: 60, // Set height to make it more compact
-    alignItems: 'center',
+  content: {
+    height: 50,
+    borderRadius: 18, // Consistent rounded corners
     justifyContent: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: 15, // Add some padding to the sides
-    elevation: 5, // Add subtle shadow for a more professional look
+    alignItems: 'center',
+    flexDirection: 'row', // Align icon and text horizontally
+    paddingHorizontal: 15, // Padding around the button
   },
-  buttonIcon: {
-    marginRight: 12, // More space between the icon and the label
-  },
-  imageIcon: {
-    width: 30, // Set image icon size
-    height: 30,
-    marginRight: 12,
-  },
-  buttonLabel: {
+  label: {
     fontSize: 18,
     fontWeight: '600',
+    textAlignVertical: 'center', // Ensure vertical alignment of text
   },
-  primaryButton: {
-    backgroundColor: '#ffd33d', // Yellow for primary button
-  },
-  secondaryButton: {
-    backgroundColor: '#25292e', // Dark background for secondary button
-  },
-  swishButton: {
-    backgroundColor: '#ffffff', // White background for Swish
-    borderWidth: 1, // Optional: Add a subtle border
-    borderColor: '#5AC9FA', // Match Swish branding colors
-  },
-  defaultButton: {
-    backgroundColor: '#ddd', // Light gray for default button
-  },
-  primaryButtonLabel: {
-    color: '#25292e', // Dark color for text on primary button
-  },
-  secondaryButtonLabel: {
-    color: '#fff', // White color for text on secondary button
-  },
-  swishButtonLabel: {
-    color: '#5AC9FA', // Match Swish branding colors for text
-  },
-  defaultButtonLabel: {
-    color: '#25292e', // Dark text color for the default button
-  },
-  disabledButton: {
-    backgroundColor: '#ccc', // Disabled button has a light gray background
+  imageIcon: {
+    width: 30, // Size of Swish logo
+    height: 30,
+    marginRight: 8, // Space between the icon and text
   },
 });

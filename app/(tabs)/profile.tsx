@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { useAuth0, User } from 'react-native-auth0'; // Import the User type
-import Button from '@/components/Button'; 
-import { db } from '@/firebase'; 
+import { View, Image, StyleSheet } from 'react-native';
+import { useAuth0 } from 'react-native-auth0';
+import { Text, useTheme } from 'react-native-paper';
+import { db } from '@/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import CircleButton from '@/components/CircleButton';
 import ItemPicker from '@/components/Model';
 import { Picker } from '@react-native-picker/picker';
-import { useUser } from '@/context/UserContext'; 
+import { useUser } from '@/context/UserContext';
 import uuid from 'react-native-uuid';
-import { TextInput } from 'react-native';
+import Button from '@/components/Button';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
@@ -19,11 +19,10 @@ export default function ProfileScreen() {
 
   const { setUserData, setUserRole, setStudentEmail } = useUser();
   const { userData, userRole, studentEmail } = useUser();
+  const { colors, fonts } = useTheme();
 
-  // Fetch all students with the role 'student'
   const fetchStudents = async () => {
     try {
-      console.log('fetching students ', user?.email)
       const q = query(collection(db, 'users'), where('role', '==', 'student'));
       const studentsSnapshot = await getDocs(q);
       const studentList = studentsSnapshot.docs.map((doc) => ({
@@ -36,19 +35,16 @@ export default function ProfileScreen() {
     }
   };
 
-  // Fetch the current user's role and connected student, if not already fetched
   const fetchUserRole = async () => {
     try {
       if (user?.email) {
-        console.log('fetching user ', user?.email)
         const userDocRef = doc(db, 'users', user.email);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserRole(userData.role || '');
           setStudentEmail(userData.student || '');
-          setUserData(userData)
-          console.log('Got user with profile', userData)
+          setUserData(userData);
         } else {
           saveUserToFirestore(user);
         }
@@ -58,45 +54,37 @@ export default function ProfileScreen() {
     }
   };
 
-  // Update the user role and associated student in Firestore
   const updateUserRole = async () => {
     try {
       if (user?.email) {
-        console.log('update user role', user?.email)
         const userDocRef = doc(db, 'users', user.email);
         const updatedData = {
           role: userRole,
           student: userRole === 'parent' ? studentEmail : '',
         };
         await setDoc(userDocRef, updatedData, { merge: true });
-        console.log('User role and student updated successfully!');
       }
     } catch (error) {
-      console.error('Error updating user role or student: ', error);
+      console.error('Error updating user role or student:', error);
     }
   };
 
-  //save user when initial saving
   const saveUserToFirestore = async (user: any) => {
     try {
-      console.log('creaing a new user doc',user)
       const userDocRef = doc(db, 'users', user.email);
       const callbackId = uuid.v4().replace(/-/g, '').toUpperCase();
-
       const userData = {
         name: user.name,
         email: user.email,
         picture: user.picture,
-        callbackId: callbackId,
+        callbackId,
         balance: 100,
-        transactions: []
+        transactions: [],
       };
-      console.log('save user ', user?.email)
       await setDoc(userDocRef, userData, { merge: true });
       setUserData(userData);
-      console.log('User saved/updated in Firestore successfully!');
     } catch (error) {
-      console.error('Error saving/updating user in Firestore: ', error);
+      console.error('Error saving/updating user in Firestore:', error);
     }
   };
 
@@ -107,7 +95,7 @@ export default function ProfileScreen() {
 
   const onModalClose = () => {
     setIsModalVisible(false);
-    updateUserRole()
+    updateUserRole();
   };
 
   const onLogin = async () => {
@@ -129,114 +117,88 @@ export default function ProfileScreen() {
     }
   };
 
-  // Fetch or Save user data to Firestore when user logs in
   useEffect(() => {
-    if (user) {
-      //  console.log('new user logged in', user)
-      if (!userRole)
-        fetchUserRole()
-    }
+    if (user && !userRole) fetchUserRole();
   }, [user]);
 
-  // Fetch available students when role update to parent
   useEffect(() => {
     if (!selectRole && userRole === 'parent' && students.length === 0) {
-      fetchStudents()
+      fetchStudents();
     }
   }, [selectRole]);
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={[styles.loadingText, { color: colors.primary }]}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {user ? (
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
           {user.picture && (
             <Image
               source={{ uri: user.picture }}
               style={styles.profilePicture}
             />
           )}
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.email}>{user.email}</Text>
+          <Text style={[styles.name, fonts.headlineMedium]}>{user.name}</Text>
+          <Text style={[styles.email, fonts.bodyMedium]}>{user.email}</Text>
           {userRole && (
-            <View>
-              <Text style={styles.studentEmailText}>Role: {userRole}</Text>
-            </View>
+            <Text style={[styles.studentEmailText, fonts.bodyLarge]}>Role: {userRole}</Text>
           )}
           {studentEmail && (
-            <View>
-              <Text style={styles.studentEmailText}>Student: {studentEmail}</Text>
-            </View>
+            <Text style={[styles.studentEmailText, fonts.bodyLarge]}>Student: {studentEmail}</Text>
           )}
           <CircleButton onPress={onModalOpen} />
-          <Button label="Log Out" theme="secondary" onPress={onLogout} icon="sign-out" />
-
+          <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
         </View>
       ) : (
         <>
-          <Text style={styles.message}>You are not logged in. Please log in to view your profile.</Text>
-          <Button label="Log In" theme="primary" onPress={onLogin} icon="sign-in" />
+          <Text style={[styles.message, { color: colors.error }]}>You are not logged in. Please log in to view your profile.</Text>
+          <Button label="Log In" theme="primary" onPress={onLogin} iconName="login" />
         </>
       )}
 
-      <ItemPicker title={selectRole ? 'Choose a role' : 'Select connected student'} isVisible={isModalVisible} onClose={onModalClose}>
-        <View>
-        {true && (<Picker
-            key={'rolePicker'}
-            style={styles.picker}
-            itemStyle={styles.pickerItem}
-            selectedValue={selectRole ? userRole : studentEmail}
-            onValueChange={(itemValue, itemIndex) => {
-              if (selectRole) {
-                setUserRole(itemValue)
-                if (itemValue === 'parent'){
-                  setSelectRole(false);
-                }
-                else if (itemValue === 'student'){
-                  setStudentEmail('');
-                }
-                  
-              }
-              else {
-                setStudentEmail(itemValue)
-              }
-            }}>
-            {selectRole && (<Picker.Item label="None" value="" />)}
-            {selectRole && (<Picker.Item label="Student" value="student" />)}
-            {selectRole && (<Picker.Item label="Parent" value="parent" />)}
-
-            {!selectRole &&
-              students.map((student) => (
-                <Picker.Item
-                  key={student.value}
-                  label={student.label}
-                  value={student.value}
-                />
-              ))}
-           
-          </Picker>)}
-          {/* {(
-            <TextInput
-            style={styles.textInput}
-            placeholder="Enter student email"
-            
-            onChangeText={(text) => setStudentEmail(text)}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          )} */}
-
-        </View>
+      <ItemPicker
+        title={selectRole ? 'Choose a role' : 'Select connected student'}
+        isVisible={isModalVisible}
+        onClose={onModalClose}
+      >
+        <Picker
+          selectedValue={selectRole ? userRole : studentEmail}
+          onValueChange={(itemValue) => {
+            if (selectRole) {
+              setUserRole(itemValue);
+              if (itemValue === 'parent') setSelectRole(false);
+              if (itemValue === 'student') setStudentEmail('');
+            } else {
+              setStudentEmail(itemValue);
+            }
+          }}
+        >
+          {selectRole && (
+            <>
+              <Picker.Item label="None" value="" />
+              <Picker.Item label="Student" value="student" />
+              <Picker.Item label="Parent" value="parent" />
+            </>
+          )}
+          {!selectRole &&
+            students.map((student) => (
+              <Picker.Item
+                key={student.value}
+                label={student.label}
+                value={student.value}
+              />
+            ))}
+        </Picker>
       </ItemPicker>
-      {/* Show errors */}
-      {error && <Text style={styles.error}>{error.message}</Text>}
+
+      {error && <Text style={[styles.error, { color: colors.error }]}>{error.message}</Text>}
     </View>
   );
 }
@@ -246,27 +208,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1',
     padding: 20,
   },
-  loadingText: {
-    fontSize: 18,
-    color: '#555',
-    fontWeight: 'bold',
-    marginTop: 10, // Add margin to separate from the loading indicator
-  },
   profileCard: {
-    backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
     width: '80%',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
     elevation: 5,
-    marginBottom: 30,
   },
   profilePicture: {
     width: 120,
@@ -275,54 +224,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   name: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#333',
+    marginBottom: 10,
   },
   email: {
-    fontSize: 16,
-    color: '#777',
-    marginVertical: 10,
+    marginBottom: 20,
   },
   message: {
     fontSize: 18,
-    color: '#ff6347',
-    marginBottom: 20,
     textAlign: 'center',
-    fontWeight: '500',
-  },
-  error: {
-    color: 'red',
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  roleText: {
-    fontSize: 18,
-    color: '#333',
-    marginTop: 10,
+    marginBottom: 20,
   },
   studentEmailText: {
-    fontSize: 16,
-    color: '#333',
     marginTop: 10,
   },
-  picker: {
-    borderRadius: 8,
-    overflow: "hidden",
+  error: {
+    marginTop: 10,
+    fontSize: 14,
   },
-  pickerItem: {
-    color: "white",
-    fontSize: 16,
+  loadingText: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  textInput: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+  button: {
     marginTop: 20,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    width: 150,
+    alignSelf: 'center',
   },
 });

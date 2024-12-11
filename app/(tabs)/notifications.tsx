@@ -1,8 +1,10 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Card, Text, Avatar, Divider } from 'react-native-paper';
+import { Card, Text, Avatar, Divider, useTheme } from 'react-native-paper';
 
 export default function NotificationsScreen() {
+  const theme = useTheme();
+
   const notifications = [
     {
       id: 1,
@@ -21,10 +23,10 @@ export default function NotificationsScreen() {
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.colors.background }]}>
       {notifications.map((notification) => (
         <React.Fragment key={notification.id}>
-          <Card style={styles.card}>
+          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Card.Title
               title={notification.title}
               subtitle={notification.description}
@@ -32,15 +34,17 @@ export default function NotificationsScreen() {
                 <Avatar.Icon
                   {...props}
                   icon={notification.avatar}
-                  style={styles.avatar}
+                  style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
                 />
               )}
             />
             <Card.Content>
-              <Text style={styles.timestamp}>{notification.timestamp}</Text>
+              <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
+                {notification.timestamp}
+              </Text>
             </Card.Content>
           </Card>
-          <Divider style={styles.divider} />
+          <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
         </React.Fragment>
       ))}
     </ScrollView>
@@ -50,8 +54,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 10,
-    backgroundColor: '#f1f1f1',
-    marginTop: '15%',
+    flexGrow: 1,
   },
   card: {
     marginVertical: 5,
@@ -59,14 +62,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   avatar: {
-    backgroundColor: '#5AC9FA',
+    marginRight: 10,
   },
   timestamp: {
     fontSize: 12,
-    color: 'gray',
     marginTop: 5,
   },
   divider: {
-    marginVertical: 5,
+    marginVertical: 10,
+    height: 1,
   },
 });

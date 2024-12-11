@@ -51,7 +51,7 @@ export default function Index() {
         originWhitelist={['*']} 
         javaScriptEnabled={true} 
         domStorageEnabled={true} 
-        style={{ flex: 1 }}
+        style={styles.container}
       />
     </View>
   );
