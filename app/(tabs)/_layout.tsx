@@ -15,6 +15,9 @@ export default function TabLayout() {
         headerShadowVisible: false,
         headerTintColor: colors.secondary,
         tabBarStyle: { backgroundColor: colors.surface },
+        tabBarLabelStyle: {
+          fontWeight: "bold",
+          },
       }}
     >
       <Tabs.Screen

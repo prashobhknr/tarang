@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Switch } from 'react-native';
 import { useAuth0 } from 'react-native-auth0';
 import { Text, useTheme } from 'react-native-paper';
 import { db } from '@/firebase';
@@ -10,6 +10,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useUser } from '@/context/UserContext';
 import uuid from 'react-native-uuid';
 import Button from '@/components/Button';
+import { useThemeSwitcher } from '@/context/ThemeContext';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const { setUserData, setUserRole, setStudentEmail } = useUser();
   const { userData, userRole, studentEmail } = useUser();
   const { colors, fonts } = useTheme();
+  const { theme, toggleTheme } = useThemeSwitcher();
 
   const fetchStudents = async () => {
     try {
@@ -155,6 +157,18 @@ export default function ProfileScreen() {
           )}
           <CircleButton onPress={onModalOpen} />
           <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
+
+          {/* Theme Switcher */}
+          <View style={styles.themeSwitcher}>
+            <Text style={[styles.themeText, { color: colors.onSurface }]}>Dark Mode</Text>
+            <Switch
+              value={theme.name === 'dark'}
+              onValueChange={toggleTheme}
+              trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
+              thumbColor={theme.name === 'dark' ? colors.primary : colors.onSurfaceVariant}
+            />
+          </View>
+
         </View>
       ) : (
         <>
@@ -245,9 +259,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  button: {
+  themeSwitcher: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 20,
-    width: 150,
-    alignSelf: 'center',
+  },
+  themeText: {
+    marginRight: 10,
+    fontSize: 16,
   },
 });

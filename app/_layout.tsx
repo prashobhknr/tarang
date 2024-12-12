@@ -6,71 +6,67 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Auth0Provider } from 'react-native-auth0';
 import { UserProvider } from '@/context/UserContext';
 import { MD3LightTheme, MD3DarkTheme, PaperProvider } from 'react-native-paper';
+import { ThemeProvider, useThemeSwitcher } from '@/context/ThemeContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import * as Notifications from "expo-notifications";
+import * as TaskManager from "expo-task-manager";
 
 LogBox.ignoreAllLogs(true); // Suppresses all log warnings
 
-const lightTheme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: '#ffd33d',
-    secondary: 'tomato',
-    background: '#f1f1f1',
-    surface: '#ffffff',
-    text: '#25292e',
-    muted: '#777777',
-    success: 'green',
-    error: 'red',
-  },
-  fonts: {
-    ...MD3LightTheme.fonts,
-    bodyLarge: { fontFamily: 'Roboto-Regular', fontWeight: '400' as const },
-    titleMedium: { fontFamily: 'Roboto-Medium', fontWeight: '500' as const },
-    labelSmall: { fontFamily: 'Roboto-Bold', fontWeight: '700' as const },
-  },
-};
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
-const darkTheme = {
-  ...MD3DarkTheme,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: '#ffd33d',
-    secondary: 'tomato',
-    background: '#25292e',
-    surface: '#333',
-    text: '#ffffff',
-    muted: '#999999',
-    success: 'green',
-    error: 'red',
-  },
-  fonts: {
-    ...MD3DarkTheme.fonts,
-    bodyLarge: { fontFamily: 'Roboto-Regular', fontWeight: '400' as const },
-    titleMedium: { fontFamily: 'Roboto-Medium', fontWeight: '500' as const },
-    labelSmall: { fontFamily: 'Roboto-Bold', fontWeight: '700' as const },
-  },
-};
+const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
+
+TaskManager.defineTask(
+  BACKGROUND_NOTIFICATION_TASK,
+  ({ data, error, executionInfo }) => {
+    console.log("✅ Received a notification in the background!", {
+      data,
+      error,
+      executionInfo,
+    });
+    // Do something with the notification data
+  }
+);
+
+Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+
 
 export default function RootLayout() {
-  const systemColorScheme = useColorScheme(); // Detect system color scheme ('light' or 'dark')
-  const theme = systemColorScheme === 'dark' ? darkTheme : lightTheme; // Dynamically set the theme
-
   return (
+    
     <Auth0Provider domain="tarangschool.eu.auth0.com" clientId="CTXGH6NyrWAEQJJ49NC2oldx3DDlqElc">
       <UserProvider>
-        <PaperProvider theme={theme}>
-          <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-            <StatusBar style={systemColorScheme === 'dark' ? 'light' : 'dark'} />
-            <Stack>
-              {/* Main Tab Navigation */}
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-              {/* Not Found Screen */}
-              <Stack.Screen name="+not-found" />
-            </Stack>
-          </GestureHandlerRootView>
-        </PaperProvider>
+        <ThemeProvider>
+        <NotificationProvider>
+          <ThemedLayout />
+          </NotificationProvider>
+        </ThemeProvider>
       </UserProvider>
     </Auth0Provider>
+    
   );
 }
+
+function ThemedLayout() {
+  const { theme } = useThemeSwitcher();
+
+  return (
+    <PaperProvider theme={theme}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar style={theme.name === 'dark' ? 'light' : 'dark'}  />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+      </GestureHandlerRootView>
+    </PaperProvider>
+  );
+}
+

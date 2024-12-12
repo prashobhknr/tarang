@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165713778974",
+    "project_id": "tarang-c2705",
+    "storage_bucket": "tarang-c2705.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165713778974:android:201b72edb0ccff41b3110f",
+        "android_client_info": {
+          "package_name": "com.auth0.tarang"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3P0L5ij5rf8DMXRtlYUdaW8LUdFQySj8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
