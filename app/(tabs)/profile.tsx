@@ -11,41 +11,27 @@ import { useUser } from '@/context/UserContext';
 import uuid from 'react-native-uuid';
 import Button from '@/components/Button';
 import { useThemeSwitcher } from '@/context/ThemeContext';
+import CourseCRUD from '@/components/CourseCRUD';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
-  const [selectRole, setSelectRole] = useState(true);
   const [students, setStudents] = useState<{ label: string; value: string }[]>([]);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  const [isCourseSheetVisible, setIsCourseSheetVisible] = useState(false); // Control for CourseCRUD's BottomSheet
+  
 
-  const { setUserData, setUserRole, setStudentEmail } = useUser();
-  const { userData, userRole, studentEmail } = useUser();
+  const { setUserData } = useUser();
+  const { userData } = useUser();
   const { colors, fonts } = useTheme();
   const { theme, toggleTheme } = useThemeSwitcher();
 
-  const fetchStudents = async () => {
-    try {
-      const q = query(collection(db, 'users'), where('role', '==', 'student'));
-      const studentsSnapshot = await getDocs(q);
-      const studentList = studentsSnapshot.docs.map((doc) => ({
-        label: doc.data().email,
-        value: doc.data().email,
-      }));
-      setStudents(studentList);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    }
-  };
-
-  const fetchUserRole = async () => {
+  const fetchUser = async () => {
     try {
       if (user?.email) {
         const userDocRef = doc(db, 'users', user.email);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setUserRole(userData.role || '');
-          setStudentEmail(userData.student || '');
           setUserData(userData);
         } else {
           saveUserToFirestore(user);
@@ -56,20 +42,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const updateUserRole = async () => {
-    try {
-      if (user?.email) {
-        const userDocRef = doc(db, 'users', user.email);
-        const updatedData = {
-          role: userRole,
-          student: userRole === 'parent' ? studentEmail : '',
-        };
-        await setDoc(userDocRef, updatedData, { merge: true });
-      }
-    } catch (error) {
-      console.error('Error updating user role or student:', error);
-    }
-  };
 
   const saveUserToFirestore = async (user: any) => {
     try {
@@ -78,26 +50,15 @@ export default function ProfileScreen() {
       const userData = {
         name: user.name,
         email: user.email,
-        picture: user.picture,
+        role: 'parent',
         callbackId,
-        balance: 100,
-        transactions: [],
+        students: []
       };
       await setDoc(userDocRef, userData, { merge: true });
       setUserData(userData);
     } catch (error) {
       console.error('Error saving/updating user in Firestore:', error);
     }
-  };
-
-  const onModalOpen = () => {
-    setIsModalVisible(true);
-    setSelectRole(true);
-  };
-
-  const onModalClose = () => {
-    setIsModalVisible(false);
-    updateUserRole();
   };
 
   const onLogin = async () => {
@@ -110,8 +71,6 @@ export default function ProfileScreen() {
 
   const onLogout = async () => {
     try {
-      setStudentEmail('');
-      setUserRole('');
       setUserData('');
       await clearSession();
     } catch (e) {
@@ -120,14 +79,13 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    if (user && !userRole) fetchUserRole();
+    if (user && !userData) fetchUser();
   }, [user]);
 
-  useEffect(() => {
-    if (!selectRole && userRole === 'parent' && students.length === 0) {
-      fetchStudents();
-    }
-  }, [selectRole]);
+  const toggleCourseSheet = () => {
+    setIsCourseSheetVisible((prev) => !prev);
+  };
+
 
   if (isLoading) {
     return (
@@ -140,36 +98,40 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {user ? (
-        <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
-          {user.picture && (
-            <Image
-              source={{ uri: user.picture }}
-              style={styles.profilePicture}
-            />
-          )}
-          <Text style={[styles.name, fonts.headlineMedium]}>{user.name}</Text>
-          <Text style={[styles.email, fonts.bodyMedium]}>{user.email}</Text>
-          {userRole && (
-            <Text style={[styles.studentEmailText, fonts.bodyLarge]}>Role: {userRole}</Text>
-          )}
-          {studentEmail && (
-            <Text style={[styles.studentEmailText, fonts.bodyLarge]}>Student: {studentEmail}</Text>
-          )}
-          <CircleButton onPress={onModalOpen} />
-          <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
+        <>
+          <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
+            {user.picture && (
+              <Image
+                source={{ uri: user.picture }}
+                style={styles.profilePicture}
+              />
+            )}
+            <Text style={[styles.name, fonts.headlineSmall]}>{user.name}</Text>
+            <Text style={[styles.email, fonts.bodySmall]}>{user.email}</Text>
+            {userData?.role==='admin' && (<CircleButton onPress={() => {toggleCourseSheet()}} isActive={isCourseSheetVisible} />)}
 
-          {/* Theme Switcher */}
-          <View style={styles.themeSwitcher}>
-            <Text style={[styles.themeText, { color: colors.onSurface }]}>Dark Mode</Text>
-            <Switch
-              value={theme.name === 'dark'}
-              onValueChange={toggleTheme}
-              trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-              thumbColor={theme.name === 'dark' ? colors.primary : colors.onSurfaceVariant}
-            />
+            <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
+
+
+
+            {/* Theme Switcher */}
+            <View style={styles.themeSwitcher}>
+              <Text style={[styles.themeText, { color: colors.onSurface }]}>{theme.name === 'dark'?'Light':'Dark'} Mode</Text>
+              <Switch
+                value={theme.name === 'dark'}
+                onValueChange={toggleTheme}
+                trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
+                thumbColor={theme.name === 'dark' ? colors.primary : colors.onSurfaceVariant}
+              />
+            </View>
+
           </View>
 
-        </View>
+          <CourseCRUD isVisible={isCourseSheetVisible} onClose={() => setIsCourseSheetVisible(false)} />
+
+        </>
+
+
       ) : (
         <>
           <Text style={[styles.message, { color: colors.error }]}>You are not logged in. Please log in to view your profile.</Text>
@@ -177,40 +139,6 @@ export default function ProfileScreen() {
         </>
       )}
 
-      <ItemPicker
-        title={selectRole ? 'Choose a role' : 'Select connected student'}
-        isVisible={isModalVisible}
-        onClose={onModalClose}
-      >
-        <Picker
-          selectedValue={selectRole ? userRole : studentEmail}
-          onValueChange={(itemValue) => {
-            if (selectRole) {
-              setUserRole(itemValue);
-              if (itemValue === 'parent') setSelectRole(false);
-              if (itemValue === 'student') setStudentEmail('');
-            } else {
-              setStudentEmail(itemValue);
-            }
-          }}
-        >
-          {selectRole && (
-            <>
-              <Picker.Item label="None" value="" />
-              <Picker.Item label="Student" value="student" />
-              <Picker.Item label="Parent" value="parent" />
-            </>
-          )}
-          {!selectRole &&
-            students.map((student) => (
-              <Picker.Item
-                key={student.value}
-                label={student.label}
-                value={student.value}
-              />
-            ))}
-        </Picker>
-      </ItemPicker>
 
       {error && <Text style={[styles.error, { color: colors.error }]}>{error.message}</Text>}
     </View>

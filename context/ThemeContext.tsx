@@ -8,8 +8,8 @@ export const lightTheme = {
   name: 'light', 
   colors: {
     ...MD3LightTheme.colors,
-    primary: '#ffd33d',
-    secondary: 'tomato',
+    primary: 'tomato',
+    secondary: '#ffd33d',
     background: '#f1f1f1',
     surface: '#ffffff',
     text: '#25292e',

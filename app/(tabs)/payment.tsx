@@ -9,8 +9,8 @@ import { db } from '@/firebase';
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { userData, userRole, studentEmail } = useUser();
-  const { setUserData, setUserRole, setStudentEmail } = useUser();
+  const { userData } = useUser();
+  const { setUserData, } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const { colors } = useTheme(); // Access theme colors dynamically
 
@@ -21,8 +21,6 @@ export default function PaymentScreen() {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setUserRole(userData.role || '');
-          setStudentEmail(userData.student || '');
           setUserData(userData);
         }
       }
@@ -72,21 +70,21 @@ export default function PaymentScreen() {
     }
   };
 
-  if (userRole !== 'parent' || !studentEmail) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>
-          You must be a parent and connected to a student to proceed.
-        </Text>
-        <Button
-          label="Go to Profile Setup"
-          theme="primary"
-          onPress={() => router.push('/(tabs)/profile')}
-          iconName="account"
-        />
-      </View>
-    );
-  }
+  // if (userRole !== 'parent' || !studentEmail) {
+  //   return (
+  //     <View style={[styles.container, { backgroundColor: colors.background }]}>
+  //       <Text style={[styles.errorText, { color: colors.error }]}>
+  //         You must be a parent and connected to a student to proceed.
+  //       </Text>
+  //       <Button
+  //         label="Go to Profile Setup"
+  //         theme="primary"
+  //         onPress={() => router.push('/(tabs)/profile')}
+  //         iconName="account"
+  //       />
+  //     </View>
+  //   );
+  // }
 
   const balance = userData?.balance ? parseFloat(userData.balance) : 0;
   const formattedBalance = balance.toFixed(2);

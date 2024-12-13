@@ -4,10 +4,11 @@ import { TouchableRipple, useTheme } from 'react-native-paper';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 type Props = {
+  isActive: boolean; // New prop to control the button state
   onPress: () => void;
 };
 
-export default function CircleButton({ onPress }: Props) {
+export default function CircleButton({ isActive, onPress }: Props) {
   const theme = useTheme();
 
   return (
@@ -15,7 +16,7 @@ export default function CircleButton({ onPress }: Props) {
       style={[
         styles.circleButton,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: isActive ? theme.colors.secondary : theme.colors.surface,
           borderColor: theme.colors.primary,
           shadowColor: theme.colors.shadow,
         },
@@ -24,14 +25,18 @@ export default function CircleButton({ onPress }: Props) {
       onPress={onPress}
       borderless={false}
     >
-      <FontAwesome name="edit" size={24} color={theme.colors.primary} />
+      <FontAwesome
+        name="edit"
+        size={24}
+        color={isActive ? theme.colors.onSecondary : theme.colors.primary}
+      />
     </TouchableRipple>
   );
 }
 
 const styles = StyleSheet.create({
   circleButton: {
-    marginTop:5,
+    marginTop: 5,
     width: 56, // Material Design size for FABs
     height: 56,
     borderRadius: 28, // Circular shape
