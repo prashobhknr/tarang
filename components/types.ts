@@ -2,7 +2,7 @@ export interface Course {
   courseId: string;
   name: string;
   price: number; 
-  time: string;
+  info: string;
   dueDate: string; 
 }
 
@@ -15,6 +15,8 @@ export interface Student {
   name: string;
   courses: Course[];
   price: number;
+  advance: number;
+  transactions: [];
   dueDate: string;
   users: string[];
   paymentAllowed: string;  // default 'new', other status like 'locked', 'pending' approval etc.

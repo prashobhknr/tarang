@@ -20,46 +20,47 @@ export default function Button({ label, theme, iconName, onPress, disabled, isLo
   const borderColor = isSwish ? '#5AC9FA' : 'transparent';
 
   return (
-    <View style={{ marginTop: 5 }}>
-      <PaperButton
-        key={`button-${theme}`} // Ensures re-render on theme change
-        mode={isSwish ? 'outlined' : 'contained'} // Mode for Swish is outlined
-        onPress={onPress}
-        disabled={disabled || isLoading}
-        contentStyle={[
-          styles.content,
-          {
-            backgroundColor, // Dynamic background color
-            borderWidth: isSwish ? 1 : 0,
-            borderColor: isSwish ? borderColor : undefined, // Apply border for Swish
-          },
-        ]}
-        labelStyle={[
-          styles.label,
-          { color: textColor }, // Dynamic text color
-        ]}
-        style={[
-          isSwish && {
-            borderRadius: 18, // Ensure consistent border radius
-          },
-        ]}
-        icon={
-          isLoading
-            ? () => <ActivityIndicator size="small" color={textColor} />
-            : isSwish
-              ? () => (
-                <Image
-                  source={require('@/assets/images/swish.png')}
-                  style={[styles.imageIcon, { marginRight: 8 }]} // Add spacing between icon and text
-                  resizeMode="contain"
-                />
-              )
-              : iconName!
-        }
-      >
-        {!isLoading && label}
-      </PaperButton>
-    </View>
+    !disabled && (
+      <View style={{ marginTop: 5 }}>
+        <PaperButton
+          key={`button-${theme}`} // Ensures re-render on theme change
+          mode={isSwish ? 'outlined' : 'contained'} // Mode for Swish is outlined
+          onPress={onPress}
+          disabled={disabled || isLoading}
+          contentStyle={[
+            styles.content,
+            {
+              backgroundColor, // Dynamic background color
+              borderWidth: isSwish ? 1 : 0,
+              borderColor: isSwish ? borderColor : undefined, // Apply border for Swish
+            },
+          ]}
+          labelStyle={[
+            styles.label,
+            { color: textColor }, // Dynamic text color
+          ]}
+          style={[
+            isSwish && {
+              borderRadius: 18, // Ensure consistent border radius
+            },
+          ]}
+          icon={
+            isLoading
+              ? () => <ActivityIndicator size="small" color={textColor} />
+              : isSwish
+                ? () => (
+                  <Image
+                    source={require('@/assets/images/swish.png')}
+                    style={[styles.imageIcon, { marginRight: 8 }]} // Add spacing between icon and text
+                    resizeMode="contain"
+                  />
+                )
+                : iconName!
+          }
+        >
+          {!isLoading && label}
+        </PaperButton>
+      </View>)
   );
 }
 

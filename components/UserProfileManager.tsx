@@ -28,7 +28,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new' });
+  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance:0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions:[] as []});
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -213,17 +213,17 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       if (selectedStudent.ssn !== newStudent.ssn) {
         // New SSN - we need to handle deleting the old student if no users are left
         try {
-          // Check if the old student only has the current user left and no other users
-          const oldStudentRef = doc(db, 'students', selectedStudent.ssn);
-          const oldStudentSnap = await getDoc(oldStudentRef);
-          if (oldStudentSnap.exists()) {
-            const oldStudent = oldStudentSnap.data() as Student;
-            // If the old student has no users left other than the current user, delete the document
-            if (oldStudent.users.length === 1 && oldStudent.users.includes(userData.email)) {
-              await deleteDoc(oldStudentRef); // Delete the old student document
-              console.log('Old student deleted');
-            }
-          }
+          // // Check if the old student only has the current user left and no other users
+          // const oldStudentRef = doc(db, 'students', selectedStudent.ssn);
+          // const oldStudentSnap = await getDoc(oldStudentRef);
+          // if (oldStudentSnap.exists()) {
+          //   const oldStudent = oldStudentSnap.data() as Student;
+          //   // If the old student has no users left other than the current user, delete the document
+          //   if (oldStudent.users.length === 1 && oldStudent.users.includes(userData.email)) {
+          //     await deleteDoc(oldStudentRef); // Delete the old student document
+          //     console.log('Old student deleted');
+          //   }
+          // }
 
           // Add or update the new student record
           await setDoc(doc(db, 'students', updatedStudent.ssn), updatedStudent);
@@ -260,7 +260,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     setStudents(updatedStudents);
     setEditMode(false);
     setSelectedStudent(null);
-    setNewStudent({ name: '', ssn: '', courses: [], price: 0, dueDate: '', users: [], paymentAllowed: 'new' });
+    setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance:0, dueDate: '', users: [], paymentAllowed: 'new', transactions:[] });
 
 
     if (newStudent.paymentAllowed === 'new') {
@@ -287,17 +287,17 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const deleteStudent = async (student: Student) => {
     const updatedStudents = students.filter((s) => s.ssn !== student.ssn);
     setStudents(updatedStudents);
+    await saveFormData(updatedStudents);
 
-    if (updatedStudents.length === 0) {
-      try {
-        const studentRef = doc(db, 'students', student.ssn);
-        await deleteDoc(studentRef);
-        await saveFormData(updatedStudents);
-        console.log('Student deleted and user data updated.');
-      } catch (error) {
-        console.error('Error deleting student:', error);
-      }
-    }
+    // if (updatedStudents.length === 0) {
+    //   try {
+    //     const studentRef = doc(db, 'students', student.ssn);
+    //     await deleteDoc(studentRef);
+    //     console.log('Student deleted and user data updated.');
+    //   } catch (error) {
+    //     console.error('Error deleting student:', error);
+    //   }
+    // }
   };
 
 
@@ -375,7 +375,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                 >
                   <View style={styles.courseDetails}>
                     <Text>{course.name}</Text>
-                    <Text>{course.time}</Text>
+                    <Text>{course.info}</Text>
                     <Text>{`$${course.price}`}</Text>
                   </View>
                 </TouchableOpacity>
@@ -412,7 +412,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                   onPress={() => {
                     setEditMode(true);
                     setSelectedStudent(item);
-                    setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed });
+                    setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance:item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed , transactions:item.transactions});
                   }}
                   style={styles.iconButton}
                 />

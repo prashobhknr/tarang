@@ -1,40 +1,93 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, Alert, StatusBar, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from 'react-native-paper'; // Import useTheme for dynamic theming
+import { useTheme, IconButton, Chip } from 'react-native-paper'; // Import useTheme for dynamic theming
 import Button from '@/components/Button'; // Import your Button component
 import { useUser } from '@/context/UserContext';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, arrayUnion, getDoc, updateDoc , setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { Student, CustomNotification } from '@/components/types';
+import BottomSheet from '@gorhom/bottom-sheet';
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const { userData } = useUser();
-  const { setUserData, } = useUser();
+  const { userData, students } = useUser();
+  const { setStudents } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const { colors } = useTheme(); // Access theme colors dynamically
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const fetchUserRole = async () => {
+  useEffect(() => {
+    if (!userData?.email) {
+      console.error('User email is missing. Cannot fetch students.');
+      return;
+    }
+    fetchStudents();
+  }, [userData]);
+
+
+  const fetchStudents = async () => {
+    
+    if (!userData.students || userData.students.length === 0) {
+      console.log('No students in user data.');
+      setStudents([]);
+      return;
+    }
+    const ssns = userData.students; // Get SSNs from user data
     try {
-      if (userData?.email) {
-        const userDocRef = doc(db, 'users', userData.email);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUserData(userData);
+      const studentsRef = collection(db, 'students'); // Reference to 'students' collection
+      const q = query(studentsRef, where('ssn', 'in', ssns));
+
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const fetchedStudents: Student[] = querySnapshot.docs.map((doc) => doc.data() as Student);
+        setStudents(fetchedStudents);
+        if(selectedStudent){
+          
+          setSelectedStudent(fetchedStudents.find(s=> s.ssn === selectedStudent.ssn) || null);
         }
+        else if (fetchedStudents.length > 0) {
+          setSelectedStudent(fetchedStudents[0]);
+        }
+      } else {
+        console.log('No students found for these SSNs.');
+        setStudents([]);
       }
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      console.error('Error fetching students:', error);
     }
   };
+
+   // Function to create and add a notification
+    const addNotification = async (notification: CustomNotification) => {
+      try {
+        const notificationsDocRef = doc(db, 'notifications', 'admin');
+        const notificationsDoc = await getDoc(notificationsDocRef);
+  
+        if (notificationsDoc.exists()) {
+          // Add the notification to the existing document
+          await updateDoc(notificationsDocRef, {
+            notifications: arrayUnion(notification),
+          });
+        } else {
+          // Create a new document if it doesn't exist
+          await setDoc(notificationsDocRef, {
+            notifications: [notification],
+          });
+        }
+      } catch (error) {
+        console.error('Error adding notification:', error);
+      }
+    };
+
 
   const handlePayment = async () => {
     if (isLoading) return;
     setIsLoading(true);
     const paymentRequestData = {
-      amount: userData?.balance || 0,
-      message: 'Tarang payment',
+      amount: selectedStudent?.price || 0,
+      message: selectedStudent?.ssn,
       callbackIdentifier: userData?.callbackId || '',
     };
 
@@ -56,9 +109,22 @@ export default function PaymentScreen() {
         Alert.alert('Payment Successful', `Your payment was successfully initiated.`);
 
         setTimeout(async () => {
-          await fetchUserRole();
-          setIsLoading(false);
-        }, 5000);
+          fetchStudents();
+        }, 10000);
+
+          // set an admin notification
+          const newNotification = {
+            id: Date.now(), // Use a unique ID based on timestamp
+            title: 'New Payment ',
+            subtitle: 'payment',
+            description: `New payment amount ${paymentRequestData.amount} for student: ${selectedStudent?.name}  from: ${userData.name}`,
+            timestamp: new Date().toISOString(),
+            avatar: 'cash',
+          };
+    
+          console.log('adding notification', newNotification)
+          await addNotification(newNotification);
+    
       } else {
         const errorData = await response.json();
         Alert.alert('Payment Failed', `There was an error processing your payment. Please try again.`);
@@ -70,29 +136,40 @@ export default function PaymentScreen() {
     }
   };
 
-  // if (userRole !== 'parent' || !studentEmail) {
-  //   return (
-  //     <View style={[styles.container, { backgroundColor: colors.background }]}>
-  //       <Text style={[styles.errorText, { color: colors.error }]}>
-  //         You must be a parent and connected to a student to proceed.
-  //       </Text>
-  //       <Button
-  //         label="Go to Profile Setup"
-  //         theme="primary"
-  //         onPress={() => router.push('/(tabs)/profile')}
-  //         iconName="account"
-  //       />
-  //     </View>
-  //   );
-  // }
+  if (students.length === 0) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>
+          You must connect a student in profile for start payment.
+        </Text>
+        <Button
+          label="Go to Profile Setup"
+          theme="primary"
+          onPress={() => router.push('/(tabs)/profile')}
+          iconName="account"
+        />
+      </View>
+    );
+  }
 
-  const balance = userData?.balance ? parseFloat(userData.balance) : 0;
-  const formattedBalance = balance.toFixed(2);
+  const handleOpenSelector = () => {
+    bottomSheetRef.current?.snapToIndex(0);;
+  };
 
-  const transactions = userData?.transactions || [];
+  const handleStudentSelect = (student: Student) => {
+    console.log('selected stuent', student)
+    setSelectedStudent(student);
+    bottomSheetRef.current?.close();
+  };
+
+  const formattedBalance = selectedStudent ? (selectedStudent.price - selectedStudent.advance) : '0';
+  const transactions = selectedStudent ? selectedStudent.transactions : [];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, {
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+      backgroundColor: colors.background
+    }]}>
       <View
         style={[
           styles.balanceContainer,
@@ -101,10 +178,40 @@ export default function PaymentScreen() {
       >
         <Text style={[styles.balanceText, { color: colors.onBackground }]}>Balance</Text>
         <Text style={[styles.balanceAmount, { color: colors.onBackground }]}>
-          ${formattedBalance}
+          {formattedBalance} SEK
         </Text>
       </View>
-      <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading} />
+      <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading} 
+      disabled={!selectedStudent || selectedStudent.price === 0} />
+
+      {/* Add Selected Student Label */}
+      <View style={styles.selectedStudentContainer}>
+        <Chip
+          icon="account"
+          style={[
+            styles.studentChip,
+            {
+              backgroundColor: colors.primaryContainer,
+            },
+          ]}
+          textStyle={{
+            color: colors.onPrimaryContainer,
+          }}
+        >
+          paying for - {selectedStudent ? selectedStudent.name : "Select a student"}
+        </Chip>
+        {students.length > 1 && (
+          <IconButton
+            icon="pencil"
+            size={20}
+            onPress={() => handleOpenSelector()}
+            style={styles.editButton}
+            iconColor={colors.primary}
+          />
+        )}
+      </View>
+
+
 
       {transactions?.length > 0 && (
         <Text style={[styles.transactionHeader, { color: colors.onBackground }]}>
@@ -140,6 +247,32 @@ export default function PaymentScreen() {
           }
         />
       )}
+
+      <BottomSheet ref={bottomSheetRef} 
+      snapPoints={['25%', '50%']}
+      enableDynamicSizing={false}
+      enablePanDownToClose
+      index={-1}
+      >
+        <FlatList
+          data={students}
+          keyExtractor={(item) => item.ssn}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.studentItem, { backgroundColor: colors.surface }]}
+              onPress={() => handleStudentSelect(item)}
+            >
+              <Text style={{ color: colors.onBackground }}>{item.name}</Text>
+              <Text style={{ color: colors.onSurfaceVariant }}>{item.ssn}</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <Text style={{ color: colors.onSurfaceVariant, textAlign: 'center', marginTop: 10 }}>
+              No students available
+            </Text>
+          }
+        />
+      </BottomSheet>
     </View>
   );
 }
@@ -150,7 +283,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 10,
-    marginTop: '15%',
   },
   errorText: {
     fontSize: 16,
@@ -209,5 +341,29 @@ const styles = StyleSheet.create({
   noTransactions: {
     textAlign: 'center',
     marginTop: 20,
+  },
+  selectedStudentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    marginTop: 16,
+  },
+  studentChip: {
+    flex: 1,
+    borderRadius: 24,
+    marginRight: 8,
+  },
+  editButton: {
+    margin: 0,
+    padding: 0,
+  },
+  studentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 5,
   },
 });

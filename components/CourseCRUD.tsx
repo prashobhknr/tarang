@@ -34,7 +34,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
   const [newCourse, setNewCourse] = useState<Omit<Course, 'courseId'>>({
     name: '',
     price: 0,
-    time: '',
+    info: '',
     dueDate: new Date().toISOString().split('T')[0], // Default today's date in YYYY-MM-DD format
   });
   const [showForm, setShowForm] = useState(false);
@@ -71,7 +71,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
 
   const resetForm = () => {
     setSelectedCourse(null);
-    setNewCourse({ name: '', price: 0, time: '', dueDate: new Date().toISOString().split('T')[0] });
+    setNewCourse({ name: '', price: 0, info: '', dueDate: new Date().toISOString().split('T')[0] });
     setShowForm(true);
   };
 
@@ -138,7 +138,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         titleStyle={[{ color: colors.text }, fonts.titleMedium]}
       />
       <Card.Content>
-        <Paragraph style={{ color: colors.muted }}>Time: {item.time}</Paragraph>
+        <Paragraph style={{ color: colors.muted }}>Time: {item.info}</Paragraph>
         <Paragraph style={{ color: colors.muted }}>Due Date: {item.dueDate}</Paragraph>
       </Card.Content>
       <Card.Actions>
@@ -150,7 +150,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
             setNewCourse({
               name: item.name,
               price: item.price,
-              time: item.time,
+              info: item.info,
               dueDate: item.dueDate,
             });
             setShowForm(true);
@@ -208,8 +208,8 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
               />
               <TextInput
                 label="Time"
-                value={newCourse.time}
-                onChangeText={(text) => setNewCourse({ ...newCourse, time: text })}
+                value={newCourse.info}
+                onChangeText={(text) => setNewCourse({ ...newCourse, info: text })}
                 style={styles.input}
               />
               <TextInput

@@ -33,7 +33,6 @@ export default function NotificationsScreen() {
 
           if (notificationsSnap.exists()) {
             const data = notificationsSnap.data();
-            console.log('notifications', data);
             setNotifications(data.notifications || []);
           } else {
             console.warn('No notifications found.');
