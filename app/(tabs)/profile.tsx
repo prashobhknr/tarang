@@ -5,20 +5,18 @@ import { Text, useTheme } from 'react-native-paper';
 import { db } from '@/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import CircleButton from '@/components/CircleButton';
-import ItemPicker from '@/components/Model';
-import { Picker } from '@react-native-picker/picker';
 import { useUser } from '@/context/UserContext';
 import uuid from 'react-native-uuid';
 import Button from '@/components/Button';
 import { useThemeSwitcher } from '@/context/ThemeContext';
 import CourseCRUD from '@/components/CourseCRUD';
+import UserProfileManager from '@/components/UserProfileManager';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
-  const [students, setStudents] = useState<{ label: string; value: string }[]>([]);
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [isCourseSheetVisible, setIsCourseSheetVisible] = useState(false); // Control for CourseCRUD's BottomSheet
-  
+  const [isProfileEdit, setIsProfileEdit] = useState(false);
+
 
   const { setUserData } = useUser();
   const { userData } = useUser();
@@ -27,7 +25,7 @@ export default function ProfileScreen() {
 
   const fetchUser = async () => {
     try {
-      if (user?.email) {
+      if (user?.email && !userData) {
         const userDocRef = doc(db, 'users', user.email);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
@@ -79,11 +77,15 @@ export default function ProfileScreen() {
   };
 
   useEffect(() => {
-    if (user && !userData) fetchUser();
+    if (user) fetchUser();
   }, [user]);
 
   const toggleCourseSheet = () => {
     setIsCourseSheetVisible((prev) => !prev);
+  };
+
+  const toggleProfileEdit = () => {
+    setIsProfileEdit((prev) => !prev);
   };
 
 
@@ -108,7 +110,8 @@ export default function ProfileScreen() {
             )}
             <Text style={[styles.name, fonts.headlineSmall]}>{user.name}</Text>
             <Text style={[styles.email, fonts.bodySmall]}>{user.email}</Text>
-            {userData?.role==='admin' && (<CircleButton onPress={() => {toggleCourseSheet()}} isActive={isCourseSheetVisible} />)}
+            {userData?.role === 'admin' && (<CircleButton onPress={() => { toggleCourseSheet() }} isActive={isCourseSheetVisible} />)}
+            {userData?.role === 'parent' && (<CircleButton onPress={() => { toggleProfileEdit() }} isActive={isProfileEdit} />)}
 
             <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
 
@@ -116,7 +119,7 @@ export default function ProfileScreen() {
 
             {/* Theme Switcher */}
             <View style={styles.themeSwitcher}>
-              <Text style={[styles.themeText, { color: colors.onSurface }]}>{theme.name === 'dark'?'Light':'Dark'} Mode</Text>
+              <Text style={[styles.themeText, { color: colors.onSurface }]}>{theme.name === 'dark' ? 'Light' : 'Dark'} Mode</Text>
               <Switch
                 value={theme.name === 'dark'}
                 onValueChange={toggleTheme}
@@ -127,7 +130,8 @@ export default function ProfileScreen() {
 
           </View>
 
-          <CourseCRUD isVisible={isCourseSheetVisible} onClose={() => setIsCourseSheetVisible(false)} />
+          {userData?.role === 'admin' && (<CourseCRUD isVisible={isCourseSheetVisible} onClose={() => setIsCourseSheetVisible(false)} />)}
+          {userData?.role === 'parent' &&(<UserProfileManager isVisible={isProfileEdit} onClose={() => setIsProfileEdit(false)} />)}
 
         </>
 

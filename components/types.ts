@@ -1,9 +1,9 @@
 export interface Course {
   courseId: string;
   name: string;
-  price: number; // Stored as a number in Firestore
+  price: number; 
   time: string;
-  dueDate: string; // Represented as a string (formatted) or a Date object locally
+  dueDate: string; 
 }
 
 export interface Catalogue {
