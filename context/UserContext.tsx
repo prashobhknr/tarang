@@ -1,4 +1,4 @@
-import { Course } from '@/components/types';
+import { Course, Student } from '@/components/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -8,9 +8,11 @@ interface UserContextType {
   userData: any;
   error: string | null;
   courses: Course[];
+  students: Student[];
   setUserData: React.Dispatch<React.SetStateAction<any>>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
+  setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
 }
 
 // Create the context with default values
@@ -21,6 +23,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [userData, setUserData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -44,9 +47,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       value={{
         userData,
         courses,
+        students,
         error,
         setUserData,
         setCourses,
+        setStudents,
         setError,
       }}
     >

@@ -11,20 +11,12 @@ import {
 } from 'react-native-paper';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useUser } from '@/context/UserContext';
-import { doc, collection, updateDoc, getDoc, setDoc, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, collection, updateDoc, getDoc, setDoc, query, where, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ListRenderItemInfo } from 'react-native';
-import { Course } from '@/components/types';
+import { Course, Student, CustomNotification } from '@/components/types';
 
-interface Student {
-  ssn: string;
-  name: string;
-  courses: Course[];
-  price: number;
-  dueDate: string;
-  users: string[];
-  paymentAllowed: string;  // default 'ok', other status like 'locked', 'pending' approval etc.
-}
+
 
 type Props = {
   isVisible: boolean;
@@ -32,12 +24,11 @@ type Props = {
 };
 
 const UserProfileManager = ({ isVisible, onClose }: Props) => {
-  const { userData, courses, setCourses, setUserData } = useUser();
+  const { userData, courses, students, setCourses, setUserData, setStudents } = useUser();
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, dueDate: '', users: [] as string[], paymentAllowed: 'ok' });
+  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new' });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -119,6 +110,28 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
+    }
+  };
+
+  // Function to create and add a notification
+  const addNotification = async (notification: CustomNotification) => {
+    try {
+      const notificationsDocRef = doc(db, 'notifications', 'admin');
+      const notificationsDoc = await getDoc(notificationsDocRef);
+
+      if (notificationsDoc.exists()) {
+        // Add the notification to the existing document
+        await updateDoc(notificationsDocRef, {
+          notifications: arrayUnion(notification),
+        });
+      } else {
+        // Create a new document if it doesn't exist
+        await setDoc(notificationsDocRef, {
+          notifications: [notification],
+        });
+      }
+    } catch (error) {
+      console.error('Error adding notification:', error);
     }
   };
 
@@ -247,7 +260,25 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     setStudents(updatedStudents);
     setEditMode(false);
     setSelectedStudent(null);
-    setNewStudent({ name: '', ssn: '', courses: [], price: 0, dueDate: '', users: [], paymentAllowed: 'ok' });
+    setNewStudent({ name: '', ssn: '', courses: [], price: 0, dueDate: '', users: [], paymentAllowed: 'new' });
+
+
+    if (newStudent.paymentAllowed === 'new') {
+      // set an admin notification
+      const newNotification = {
+        id: Date.now(), // Use a unique ID based on timestamp
+        title: 'New Student Created',
+        subtitle: 'validate',
+        description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} created`,
+        timestamp: new Date().toISOString(),
+        avatar: 'calendar',
+      };
+
+      console.log('adding notification', newNotification)
+
+      await addNotification(newNotification);
+    }
+
   };
 
 
@@ -381,7 +412,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                   onPress={() => {
                     setEditMode(true);
                     setSelectedStudent(item);
-                    setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, dueDate: item.dueDate, users:item.users, paymentAllowed: item.paymentAllowed });
+                    setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed });
                   }}
                   style={styles.iconButton}
                 />
