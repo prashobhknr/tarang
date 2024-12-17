@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, StatusBar, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, StatusBar, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, IconButton, Chip } from 'react-native-paper'; // Import useTheme for dynamic theming
+import { useTheme, IconButton, Chip, Button as PaperButton, Snackbar } from 'react-native-paper'; // Import useTheme for dynamic theming
 import Button from '@/components/Button'; // Import your Button component
 import { useUser } from '@/context/UserContext';
-import { doc, getDocs, collection, query, where, arrayUnion, getDoc, updateDoc , setDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, arrayUnion, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Student, CustomNotification } from '@/components/types';
-import BottomSheet from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -17,6 +17,8 @@ export default function PaymentScreen() {
   const { colors } = useTheme(); // Access theme colors dynamically
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
     if (!userData?.email) {
@@ -28,7 +30,6 @@ export default function PaymentScreen() {
 
 
   const fetchStudents = async () => {
-    
     if (!userData.students || userData.students.length === 0) {
       console.log('No students in user data.');
       setStudents([]);
@@ -43,9 +44,9 @@ export default function PaymentScreen() {
       if (!querySnapshot.empty) {
         const fetchedStudents: Student[] = querySnapshot.docs.map((doc) => doc.data() as Student);
         setStudents(fetchedStudents);
-        if(selectedStudent){
-          
-          setSelectedStudent(fetchedStudents.find(s=> s.ssn === selectedStudent.ssn) || null);
+        if (selectedStudent) {
+
+          setSelectedStudent(fetchedStudents.find(s => s.ssn === selectedStudent.ssn) || null);
         }
         else if (fetchedStudents.length > 0) {
           setSelectedStudent(fetchedStudents[0]);
@@ -59,27 +60,27 @@ export default function PaymentScreen() {
     }
   };
 
-   // Function to create and add a notification
-    const addNotification = async (notification: CustomNotification) => {
-      try {
-        const notificationsDocRef = doc(db, 'notifications', 'admin');
-        const notificationsDoc = await getDoc(notificationsDocRef);
-  
-        if (notificationsDoc.exists()) {
-          // Add the notification to the existing document
-          await updateDoc(notificationsDocRef, {
-            notifications: arrayUnion(notification),
-          });
-        } else {
-          // Create a new document if it doesn't exist
-          await setDoc(notificationsDocRef, {
-            notifications: [notification],
-          });
-        }
-      } catch (error) {
-        console.error('Error adding notification:', error);
+  // Function to create and add a notification
+  const addNotification = async (notification: CustomNotification) => {
+    try {
+      const notificationsDocRef = doc(db, 'notifications', 'admin');
+      const notificationsDoc = await getDoc(notificationsDocRef);
+
+      if (notificationsDoc.exists()) {
+        // Add the notification to the existing document
+        await updateDoc(notificationsDocRef, {
+          notifications: arrayUnion(notification),
+        });
+      } else {
+        // Create a new document if it doesn't exist
+        await setDoc(notificationsDocRef, {
+          notifications: [notification],
+        });
       }
-    };
+    } catch (error) {
+      console.error('Error adding notification:', error);
+    }
+  };
 
 
   const handlePayment = async () => {
@@ -106,32 +107,34 @@ export default function PaymentScreen() {
       if (response.ok) {
         const data = await response.json();
         setIsLoading(false);
-        Alert.alert('Payment Successful', `Your payment was successfully initiated.`);
-
+        setSnackbarMessage('Your payment was successfully initiated.');
+        setSnackbarVisible(true);
         setTimeout(async () => {
           fetchStudents();
         }, 10000);
 
-          // set an admin notification
-          const newNotification = {
-            id: Date.now(), // Use a unique ID based on timestamp
-            title: 'New Payment ',
-            subtitle: 'payment',
-            description: `New payment amount ${paymentRequestData.amount} for student: ${selectedStudent?.name}  from: ${userData.name}`,
-            timestamp: new Date().toISOString(),
-            avatar: 'cash',
-          };
-    
-          console.log('adding notification', newNotification)
-          await addNotification(newNotification);
-    
+        // set an admin notification
+        const newNotification = {
+          id: Date.now(), // Use a unique ID based on timestamp
+          title: 'New Payment ',
+          subtitle: 'payment',
+          description: `New payment amount ${paymentRequestData.amount} for student: ${selectedStudent?.name}  from: ${userData.name}`,
+          timestamp: new Date().toISOString(),
+          avatar: 'cash',
+        };
+
+        console.log('adding notification', newNotification)
+        await addNotification(newNotification);
+
       } else {
         const errorData = await response.json();
-        Alert.alert('Payment Failed', `There was an error processing your payment. Please try again.`);
+        setSnackbarMessage('There was an error processing your payment. Please try again.');
+        setSnackbarVisible(true);
         setIsLoading(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred while processing your payment. Please try again later.');
+      setSnackbarMessage('An unexpected error occurred while processing your payment. Please try again later.');
+      setSnackbarVisible(true);
       setIsLoading(false);
     }
   };
@@ -139,15 +142,18 @@ export default function PaymentScreen() {
   if (students.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>
+        <Text style={[styles.loginPromptText, { color: colors.onBackground }]}>
           You must connect a student in profile for start payment.
         </Text>
-        <Button
-          label="Go to Profile Setup"
-          theme="primary"
+        <PaperButton
+          mode="contained"
           onPress={() => router.push('/(tabs)/profile')}
-          iconName="account"
-        />
+          style={{ borderRadius: 5 }}
+          icon="account"
+        >
+          Go to profile
+        </PaperButton>
+
       </View>
     );
   }
@@ -157,19 +163,29 @@ export default function PaymentScreen() {
   };
 
   const handleStudentSelect = (student: Student) => {
-    console.log('selected stuent', student)
     setSelectedStudent(student);
     bottomSheetRef.current?.close();
   };
 
   const formattedBalance = selectedStudent ? (selectedStudent.price - selectedStudent.advance) : '0';
+  const formattedDueDate = selectedStudent?.dueDate
+    ? new Date(selectedStudent.dueDate).toLocaleDateString()
+    : "Not available";
   const transactions = selectedStudent ? selectedStudent.transactions : [];
 
   return (
     <View style={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
       backgroundColor: colors.background
     }]}>
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={Snackbar.DURATION_SHORT}
+        style={{ backgroundColor: colors.primary }}
+      >
+        {snackbarMessage}
+      </Snackbar>
       <View
         style={[
           styles.balanceContainer,
@@ -181,8 +197,8 @@ export default function PaymentScreen() {
           {formattedBalance} SEK
         </Text>
       </View>
-      <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading} 
-      disabled={!selectedStudent || selectedStudent.price === 0} />
+      <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading}
+        disabled={!selectedStudent || selectedStudent.price === 0} />
 
       {/* Add Selected Student Label */}
       <View style={styles.selectedStudentContainer}>
@@ -200,6 +216,7 @@ export default function PaymentScreen() {
         >
           paying for - {selectedStudent ? selectedStudent.name : "Select a student"}
         </Chip>
+
         {students.length > 1 && (
           <IconButton
             icon="pencil"
@@ -210,6 +227,25 @@ export default function PaymentScreen() {
           />
         )}
       </View>
+
+      {/* Professional Due Date Label */}
+      {formattedDueDate !== "Not available" && (
+        <View style={styles.selectedStudentContainer}>
+          <Chip
+            style={[
+              styles.studentChip,
+              { backgroundColor: colors.primaryContainer },
+            ]}
+            textStyle={{
+              color: colors.onPrimaryContainer,
+              fontWeight: "600",
+            }}
+            icon="calendar-clock"
+          >
+            Due Date: {formattedDueDate}
+          </Chip>
+        </View>
+      )}
 
 
 
@@ -248,30 +284,40 @@ export default function PaymentScreen() {
         />
       )}
 
-      <BottomSheet ref={bottomSheetRef} 
-      snapPoints={['25%', '50%']}
-      enableDynamicSizing={false}
-      enablePanDownToClose
-      index={-1}
+      <BottomSheet ref={bottomSheetRef}
+        snapPoints={['25%', '50%']}
+        enableDynamicSizing={false}
+        enablePanDownToClose
+        index={-1}
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop
+            {...props}
+            appearsOnIndex={0}
+            disappearsOnIndex={-1}
+            pressBehavior="close"
+          />
+        )}
       >
-        <FlatList
-          data={students}
-          keyExtractor={(item) => item.ssn}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.studentItem, { backgroundColor: colors.surface }]}
-              onPress={() => handleStudentSelect(item)}
-            >
-              <Text style={{ color: colors.onBackground }}>{item.name}</Text>
-              <Text style={{ color: colors.onSurfaceVariant }}>{item.ssn}</Text>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={{ color: colors.onSurfaceVariant, textAlign: 'center', marginTop: 10 }}>
-              No students available
-            </Text>
-          }
-        />
+        <BottomSheetView>
+          <FlatList
+            data={students}
+            keyExtractor={(item) => item.ssn}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.studentItem, { backgroundColor: colors.surface }]}
+                onPress={() => handleStudentSelect(item)}
+              >
+                <Text style={{ color: colors.onBackground }}>{item.name}</Text>
+                <Text style={{ color: colors.onSurfaceVariant }}>{item.ssn}</Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={{ color: colors.onSurfaceVariant, textAlign: 'center', marginTop: 10 }}>
+                No students available
+              </Text>
+            }
+          />
+        </BottomSheetView>
       </BottomSheet>
     </View>
   );
@@ -284,7 +330,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 10,
   },
-  errorText: {
+  loginPromptText: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
@@ -347,8 +393,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginBottom: 16,
-    marginTop: 16,
+    marginTop: 10,
   },
   studentChip: {
     flex: 1,

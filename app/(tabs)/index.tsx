@@ -82,7 +82,7 @@ export default function Index() {
   return (
     <View style={[styles.container, {
       backgroundColor: colors.background,
-      paddingTop: Platform.OS == "android" ? StatusBar.currentHeight : 10,
+      paddingTop: Platform.OS == "android" ? StatusBar.currentHeight : StatusBar.currentHeight,
     }]}>
 
       {notification &&

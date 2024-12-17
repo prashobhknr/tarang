@@ -2,10 +2,11 @@ import { Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme, Badge } from 'react-native-paper';
 import { View, StyleSheet } from 'react-native';
+import { useUser } from '@/context/UserContext';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const notificationCount = 5; // Example notification count
+  const { notifications} = useUser();
 
   return (
     <Tabs
@@ -60,8 +61,8 @@ export default function TabLayout() {
                 color={color}
                 size={24}
               />
-              {notificationCount > 0 && (
-                <Badge style={styles.badge}>{notificationCount}</Badge>
+              {notifications.length > 0 && (
+                <Badge style={styles.badge}>{notifications.length}</Badge>
               )}
             </View>
           ),

@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { View, Image, StyleSheet, Switch } from 'react-native';
 import { useAuth0 } from 'react-native-auth0';
-import { Text, useTheme } from 'react-native-paper';
+import { Text, useTheme, Button } from 'react-native-paper';
 import { db } from '@/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import CircleButton from '@/components/CircleButton';
 import { useUser } from '@/context/UserContext';
 import uuid from 'react-native-uuid';
-import Button from '@/components/Button';
 import { useThemeSwitcher } from '@/context/ThemeContext';
 import CourseCRUD from '@/components/CourseCRUD';
 import UserProfileManager from '@/components/UserProfileManager';
+import { useNotification } from "@/context/NotificationContext";
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
   const [isCourseSheetVisible, setIsCourseSheetVisible] = useState(false); // Control for CourseCRUD's BottomSheet
   const [isProfileEdit, setIsProfileEdit] = useState(false);
+  const { expoPushToken } = useNotification();
 
 
   const { setUserData } = useUser();
@@ -50,7 +51,8 @@ export default function ProfileScreen() {
         email: user.email,
         role: 'parent',
         callbackId,
-        students: []
+        students: [],
+        expoPushToken: expoPushToken
       };
       await setDoc(userDocRef, userData, { merge: true });
       setUserData(userData);
@@ -113,7 +115,15 @@ export default function ProfileScreen() {
             {userData?.role === 'admin' && (<CircleButton onPress={() => { toggleCourseSheet() }} isActive={isCourseSheetVisible} />)}
             {userData?.role === 'parent' && (<CircleButton onPress={() => { toggleProfileEdit() }} isActive={isProfileEdit} />)}
 
-            <Button label="Log Out" theme="secondary" onPress={onLogout} iconName="logout" />
+            <Button
+              mode="contained"
+              onPress={() => onLogout()}
+              style={{ borderRadius: 5, marginTop: 10 }}
+              icon="logout"
+            >
+              Log Out
+            </Button>
+
 
 
 
@@ -124,22 +134,30 @@ export default function ProfileScreen() {
                 value={theme.name === 'dark'}
                 onValueChange={toggleTheme}
                 trackColor={{ false: colors.surfaceVariant, true: colors.primary }}
-                thumbColor={theme.name === 'dark' ? colors.primary : colors.onSurfaceVariant}
+                thumbColor={theme.name === 'dark' ? colors.onPrimary : colors.onSurfaceVariant}
               />
             </View>
 
           </View>
 
           {userData?.role === 'admin' && (<CourseCRUD isVisible={isCourseSheetVisible} onClose={() => setIsCourseSheetVisible(false)} />)}
-          {userData?.role === 'parent' &&(<UserProfileManager isVisible={isProfileEdit} onClose={() => setIsProfileEdit(false)} />)}
+          {userData?.role === 'parent' && (<UserProfileManager isVisible={isProfileEdit} onClose={() => setIsProfileEdit(false)} />)}
 
         </>
 
 
       ) : (
         <>
-          <Text style={[styles.message, { color: colors.error }]}>You are not logged in. Please log in to view your profile.</Text>
-          <Button label="Log In" theme="primary" onPress={onLogin} iconName="login" />
+          <Text style={[styles.message, { color: colors.onBackground }]}>You are not logged in. Please log in to view your profile.</Text>
+          <Button
+            mode="contained"
+            onPress={() => onLogin()}
+            style={{ borderRadius: 5 }}
+            icon="login"
+          >
+            Log In
+          </Button>
+
         </>
       )}
 
@@ -176,7 +194,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   message: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
   },

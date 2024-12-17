@@ -1,4 +1,4 @@
-import { Course, Student } from '@/components/types';
+import { Course, Student, CustomNotification } from '@/components/types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -9,10 +9,12 @@ interface UserContextType {
   error: string | null;
   courses: Course[];
   students: Student[];
+  notifications: CustomNotification[];
   setUserData: React.Dispatch<React.SetStateAction<any>>;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
+  setNotifications: React.Dispatch<React.SetStateAction<CustomNotification[]>>;
 }
 
 // Create the context with default values
@@ -24,6 +26,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [notifications, setNotifications] = useState<CustomNotification[]>([]);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -53,6 +56,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setCourses,
         setStudents,
         setError,
+        notifications,
+        setNotifications
       }}
     >
       {children}

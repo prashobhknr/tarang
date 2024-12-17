@@ -269,7 +269,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         id: Date.now(), // Use a unique ID based on timestamp
         title: 'New Student Created',
         subtitle: 'validate',
-        description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} created`,
+        description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} courses: ${newStudent.courses.map(course => course.name).join(", ")} `,
         timestamp: new Date().toISOString(),
         avatar: 'calendar',
       };

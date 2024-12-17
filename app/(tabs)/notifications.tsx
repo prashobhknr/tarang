@@ -10,8 +10,7 @@ import { CustomNotification } from '@/components/types';
 export default function NotificationsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userData } = useUser();
-  const [notifications, setNotifications] = useState<CustomNotification[]>([]);
+  const { userData, notifications, setNotifications} = useUser();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,7 +48,7 @@ export default function NotificationsScreen() {
     };
 
     fetchNotifications();
-  }, []);
+  }, [userData]);
 
   const handleDismiss = async (notificationId: number) => {
     try {
@@ -82,6 +81,7 @@ export default function NotificationsScreen() {
           mode="contained"
           onPress={() => router.push('/(tabs)/profile')}
           style={styles.loginButton}
+          icon="account"
         >
           Go to Login
         </Button>
@@ -99,7 +99,7 @@ export default function NotificationsScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 50,
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
       backgroundColor: theme.colors.background,
     }]}>
       {notifications.length === 0 ? (
@@ -108,7 +108,7 @@ export default function NotificationsScreen() {
         </Text>
       ) : (
         notifications.map((notification: CustomNotification) => (
-          <React.Fragment key={notification.id}>
+          <React.Fragment key={`${notification.id}-${theme.dark}`}>
             <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
               <Card.Title
                 title={notification.title}
@@ -126,6 +126,7 @@ export default function NotificationsScreen() {
                     size={24}
                     onPress={() => handleDismiss(notification.id)}
                     style={styles.dismissButton}
+                    iconColor={theme.colors.primary}
                   />
                 )}
               />
