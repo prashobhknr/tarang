@@ -20,6 +20,7 @@ export interface Student {
   dueDate: string;
   users: string[];
   paymentAllowed: string;  // default 'new', other status like 'locked', 'pending' approval etc.
+  expoPushTokens: string[]
 }
 
 export interface CustomNotification {

@@ -18,6 +18,7 @@ import { doc, collection, updateDoc, getDoc, setDoc, query, where, getDocs, dele
 import { db } from '@/firebase';
 import { ListRenderItemInfo } from 'react-native';
 import { Course, Student, CustomNotification } from '@/components/types';
+import { useNotification } from "@/context/NotificationContext";
 
 
 
@@ -31,13 +32,14 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [] });
+  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [] , expoPushTokens: [] as string[]});
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
   const [studentToLoad, setStudentToLoad] = useState<Student | null>(null);
 
   const [editMode, setEditMode] = useState(false);
+    const { expoPushToken } = useNotification();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['50%', '90%'], []);
@@ -268,22 +270,30 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       return;
     }
 
+
+    newStudent.expoPushTokens = newStudent.expoPushTokens? newStudent.expoPushTokens : []
     // Ensure the user email is in the 'users' array
-    const updatedStudent = {
+    const updatedStudent : Student = {
       ...newStudent,
+      expoPushTokens: (expoPushToken && !newStudent.expoPushTokens.includes(expoPushToken)) 
+      ? [...newStudent.expoPushTokens, expoPushToken]  
+      : newStudent.expoPushTokens,  
       users: newStudent.users.includes(userData.email)
         ? newStudent.users
         : [...newStudent.users, userData.email] // Add the current user's email to users list
     };
+    
 
     let updatedStudents: Student[];
     if (selectedStudent) {
+      
       // Handle logic for updating a student with a new SSN
       if (selectedStudent.ssn !== newStudent.ssn) {
         setSnackbarMessage('You cannot change the SSN of an existing student.');
         setSnackbarVisible(true);
         updatedStudents = students;
       } else {
+        console.log('updating student');
         // If SSN is the same, simply update the student
         updatedStudents = students.map((student) =>
           student.ssn === selectedStudent.ssn ? updatedStudent : student
@@ -295,6 +305,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         }
       }
     } else {
+      console.log('adding new student');
       // New student with a new SSN
 
       //check if it is already added
@@ -309,6 +320,8 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       const existingStudentSnapshot = await getDoc(doc(db, 'students', newStudent.ssn));
       if (existingStudentSnapshot.exists()) {
         const existingStudent = existingStudentSnapshot.data() as Student;
+        existingStudent.expoPushTokens = (expoPushToken && !existingStudent.expoPushTokens.includes(expoPushToken)) 
+        ? [...existingStudent.expoPushTokens, expoPushToken]: existingStudent.expoPushTokens,  
         setStudentToLoad(existingStudent);
         setConfirmDialogVisible(true);
         return;
@@ -327,6 +340,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   };
 
   async function connectUserAndStudent(updatedStudents: Student[]) {
+    console.log('connecting student to profile');
     await saveFormData(updatedStudents);
     setStudents(updatedStudents);
     setViewOnlyMode();
@@ -348,6 +362,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     }
   }
 
+  function setViewOnlyMode() {
+    setEditMode(false);
+    setSelectedStudent(null);
+    setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance: 0, dueDate: '', users: [], paymentAllowed: 'new', transactions: [], expoPushTokens: [] });
+  }
 
 
 
@@ -510,7 +529,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                       onPress={() => {
                         setEditMode(true);
                         setSelectedStudent(item);
-                        setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions });
+                        setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
                       }}
                       style={styles.iconButton}
                     />
@@ -540,13 +559,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       </BottomSheetView>
     </BottomSheet>
   );
-
-
-  function setViewOnlyMode() {
-    setEditMode(false);
-    setSelectedStudent(null);
-    setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance: 0, dueDate: '', users: [], paymentAllowed: 'new', transactions: [] });
-  }
 };
 
 const styles = StyleSheet.create({
