@@ -20,7 +20,7 @@ export default function NotificationsScreen() {
           let notificationsDocRef;
 
           // For admin users, fetch notifications from 'admin' document
-          if (userData.role !== 'admin') {
+          if (userData.role === 'admin') {
             notificationsDocRef = doc(db, 'notifications', 'admin');
           }
           // For regular users, fetch notifications from their specific email ID document
