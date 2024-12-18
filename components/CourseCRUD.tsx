@@ -138,7 +138,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         titleStyle={[{ color: colors.text }, fonts.titleMedium]}
       />
       <Card.Content>
-        <Paragraph style={{ color: colors.muted }}>Time: {item.info}</Paragraph>
+        <Paragraph style={{ color: colors.muted }}>Info: {item.info}</Paragraph>
         <Paragraph style={{ color: colors.muted }}>Due Date: {item.dueDate}</Paragraph>
       </Card.Content>
       <Card.Actions>
@@ -207,7 +207,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
                 style={styles.input}
               />
               <TextInput
-                label="Time"
+                label="Info"
                 value={newCourse.info}
                 onChangeText={(text) => setNewCourse({ ...newCourse, info: text })}
                 style={styles.input}

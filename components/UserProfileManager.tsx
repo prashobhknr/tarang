@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { FlatList, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { FlatList, StyleSheet, View, TouchableOpacity } from 'react-native';
 import {
   TextInput,
   Button,
@@ -8,6 +8,9 @@ import {
   IconButton,
   useTheme,
   Snackbar,
+  Dialog,
+  Portal,
+  Text
 } from 'react-native-paper';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useUser } from '@/context/UserContext';
@@ -28,9 +31,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance:0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions:[] as []});
+  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [] });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
+  const [studentToLoad, setStudentToLoad] = useState<Student | null>(null);
 
   const [editMode, setEditMode] = useState(false);
 
@@ -175,15 +180,78 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     return { totalPrice, maxDueDate };
   };
 
-  const validateSSN = (ssn: string) => {
-    const ssnPattern = /^(?:\d{6}-\d{4})$/;  // SSN format should be YYMMDD-XXXX
-    return ssnPattern.test(ssn);
+  const validateSSN = (ssn: string): boolean => {
+    // Check basic SSN format YYMMDD-XXXX
+    const ssnPattern = /^\d{6}-\d{4}$/;
+    if (!ssnPattern.test(ssn)) {
+      return false;
+    }
+
+    // Extract digits, remove the dash
+    const ssnDigits = ssn.replace('-', '');
+
+    // Luhn algorithm to verify the last digit
+    const luhnSum = ssnDigits.split('').slice(0, 9).reduce((sum, char, index) => {
+      let digit = parseInt(char, 10);
+      if (index % 2 === 0) digit *= 2; // Double every other digit
+      if (digit > 9) digit -= 9; // Subtract 9 if the digit is greater than 9
+      return sum + digit;
+    }, 0);
+
+    const checkDigit = parseInt(ssnDigits[9], 10);
+    if ((luhnSum + checkDigit) % 10 !== 0) {
+      return false;
+    }
+
+    // Validate age (less than 18 years old)
+    const birthDate = extractBirthDate(ssnDigits);
+    // if (!birthDate || !isUnder18(birthDate)) {
+    //   return false;
+    // }
+
+    if (!birthDate) {
+      return false;
+    }
+
+    return true;
   };
 
+  // Function to extract birthdate from SSN
+  const extractBirthDate = (ssnDigits: string): Date | null => {
+    const year = parseInt(ssnDigits.substring(0, 2), 10);
+    const month = parseInt(ssnDigits.substring(2, 4), 10);
+    const day = parseInt(ssnDigits.substring(4, 6), 10);
+
+    // Handle YY -> full year (1900s or 2000s)
+    const currentYear = new Date().getFullYear();
+    const fullYear = year + (year >= currentYear % 100 ? 1900 : 2000); // Assumes birthdates are in the 1900s or 2000s
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      return null; // Invalid date
+    }
+
+    return new Date(fullYear, month - 1, day); // Month is 0-indexed
+  };
+
+  // Function to check if the person is under 18
+  const isUnder18 = (birthDate: Date): boolean => {
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+
+    // Check if the birthday has passed this year
+    const hasBirthdayPassed =
+      today.getMonth() > birthDate.getMonth() ||
+      (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+    return age < 18 || (age === 18 && !hasBirthdayPassed);
+  };
+
+
   const addOrUpdateStudent = async () => {
+    console.log('selected', selectedStudent?.ssn)
     // Validation for SSN, phone number, and courses
     if (!validateSSN(newStudent.ssn)) {
-      setSnackbarMessage('Invalid SSN format. Expected format: YYMMDD-XXXX.');
+      setSnackbarMessage('Invalid student SSN. Expected format: YYMMDD-XXXX.');
       setSnackbarVisible(true);
       return;
     }
@@ -210,30 +278,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
 
     let updatedStudents: Student[];
     if (selectedStudent) {
+      // Handle logic for updating a student with a new SSN
       if (selectedStudent.ssn !== newStudent.ssn) {
-        // New SSN - we need to handle deleting the old student if no users are left
-        try {
-          // // Check if the old student only has the current user left and no other users
-          // const oldStudentRef = doc(db, 'students', selectedStudent.ssn);
-          // const oldStudentSnap = await getDoc(oldStudentRef);
-          // if (oldStudentSnap.exists()) {
-          //   const oldStudent = oldStudentSnap.data() as Student;
-          //   // If the old student has no users left other than the current user, delete the document
-          //   if (oldStudent.users.length === 1 && oldStudent.users.includes(userData.email)) {
-          //     await deleteDoc(oldStudentRef); // Delete the old student document
-          //     console.log('Old student deleted');
-          //   }
-          // }
-
-          // Add or update the new student record
-          await setDoc(doc(db, 'students', updatedStudent.ssn), updatedStudent);
-
-        } catch (error) {
-          console.error('Error adding student with new SSN:', error);
-        }
-        updatedStudents = students.map((student) =>
-          student.ssn === selectedStudent.ssn ? updatedStudent : student
-        );
+        setSnackbarMessage('You cannot change the SSN of an existing student.');
+        setSnackbarVisible(true);
+        updatedStudents = students;
       } else {
         // If SSN is the same, simply update the student
         updatedStudents = students.map((student) =>
@@ -247,6 +296,24 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       }
     } else {
       // New student with a new SSN
+
+      //check if it is already added
+      const ssnExists = students.some((student) => student.ssn === newStudent.ssn);
+      if (!selectedStudent && ssnExists) {
+        setSnackbarMessage('A student with this SSN already exists.');
+        setSnackbarVisible(true);
+        return;
+      }
+
+      // Check for an existing student with the same SSN in Firestore
+      const existingStudentSnapshot = await getDoc(doc(db, 'students', newStudent.ssn));
+      if (existingStudentSnapshot.exists()) {
+        const existingStudent = existingStudentSnapshot.data() as Student;
+        setStudentToLoad(existingStudent);
+        setConfirmDialogVisible(true);
+        return;
+      }
+
       updatedStudents = [...students, updatedStudent];
       try {
         await setDoc(doc(db, 'students', updatedStudent.ssn), updatedStudent);
@@ -256,12 +323,13 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     }
 
     // Save updated students list to the user's data
+    await connectUserAndStudent(updatedStudents);
+  };
+
+  async function connectUserAndStudent(updatedStudents: Student[]) {
     await saveFormData(updatedStudents);
     setStudents(updatedStudents);
-    setEditMode(false);
-    setSelectedStudent(null);
-    setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance:0, dueDate: '', users: [], paymentAllowed: 'new', transactions:[] });
-
+    setViewOnlyMode();
 
     if (newStudent.paymentAllowed === 'new') {
       // set an admin notification
@@ -274,12 +342,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         avatar: 'calendar',
       };
 
-      console.log('adding notification', newNotification)
+      console.log('adding notification', newNotification);
 
       await addNotification(newNotification);
     }
-
-  };
+  }
 
 
 
@@ -324,6 +391,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       keyboardBehavior="fillParent"
     >
       <BottomSheetView style={styles.bottomSheetContent}>
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.heading, { color: colors.primary }]}>
+            Student Information
+          </Text>
+        </View>
         <View style={styles.userInfo}>
           <Text>Email: {userData.email}</Text>
           <Text>Name: {userData.name}</Text>
@@ -331,11 +403,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         </View>
 
         <Button
-          onPress={() => setEditMode(!editMode)}
+          onPress={() => editMode ? setViewOnlyMode() : setEditMode(true)}
           mode="contained"
           style={styles.toggleEditButton}
         >
-          {editMode ? 'Switch to View Mode' : 'Switch to Edit Mode'}
+          {editMode ? 'Cancel edit' : 'Add new student'}
         </Button>
 
         <TextInput
@@ -346,6 +418,29 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           style={styles.input}
           keyboardType="phone-pad"
         />
+
+        <Portal>
+          <Dialog visible={confirmDialogVisible} onDismiss={() => setConfirmDialogVisible(false)}>
+            <Dialog.Title>Student Already Exists</Dialog.Title>
+            <Dialog.Content>
+              <Text>Student with SSN {studentToLoad?.ssn} name: {studentToLoad?.name} already exists. Would you like to load their details?</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setConfirmDialogVisible(false)}>Cancel</Button>
+              <Button
+                onPress={() => {
+                  if (studentToLoad) {
+                    let updatedStudents: Student[] = students ? [...students, studentToLoad] : [studentToLoad];
+                    connectUserAndStudent(updatedStudents)
+                  }
+                  setConfirmDialogVisible(false);
+                }}
+              >
+                Load Details
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
 
         {editMode && (
           <View>
@@ -362,6 +457,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
               onChangeText={(text) => setNewStudent({ ...newStudent, ssn: text })}
               editable={editMode}
               style={styles.input}
+              placeholder='YYMMDD-XXXX'
             />
             <Text>Courses:</Text>
             {courses.map((course) => (
@@ -391,40 +487,44 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           </View>
         )}
 
-        {renderEmptyStudentsMessage()}
+        {!editMode && renderEmptyStudentsMessage()}
 
-        <FlatList
-          data={students}
-          keyExtractor={(item) => item.ssn}
-          renderItem={({ item }: ListRenderItemInfo<Student>) => (
-            <Card style={styles.card}>
-              <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
-              <Card.Content>
-                <Paragraph>
-                  Courses: {item.courses.map((course) => course.name).join(', ')}
-                  {'\n'}Price: ${item.price}
-                  {'\n'}Due Date: {item.dueDate}
-                </Paragraph>
-              </Card.Content>
-              <Card.Actions style={styles.cardActions}>
-                <IconButton
-                  icon="pencil"
-                  onPress={() => {
-                    setEditMode(true);
-                    setSelectedStudent(item);
-                    setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance:item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed , transactions:item.transactions});
-                  }}
-                  style={styles.iconButton}
-                />
-                <IconButton
-                  icon="delete"
-                  onPress={() => deleteStudent(item)}
-                  style={styles.iconButton}
-                />
-              </Card.Actions>
-            </Card>
-          )}
-        />
+        {!editMode && (
+          <FlatList
+            data={students}
+            keyExtractor={(item) => item.ssn}
+            renderItem={({ item }: ListRenderItemInfo<Student>) => (
+              <Card style={styles.card}>
+                <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
+                <Card.Content>
+                  <Paragraph>
+                    Courses: {item.courses.map((course) => course.name).join(', ')}
+                    {'\n'}Price: ${item.price}
+                    {'\n'}Due Date: {item.dueDate}
+                  </Paragraph>
+                </Card.Content>
+                {item.paymentAllowed === 'new' && (
+                  <Card.Actions style={styles.cardActions}>
+                    <IconButton
+                      icon="pencil"
+                      onPress={() => {
+                        setEditMode(true);
+                        setSelectedStudent(item);
+                        setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions });
+                      }}
+                      style={styles.iconButton}
+                    />
+                    <IconButton
+                      icon="delete"
+                      onPress={() => deleteStudent(item)}
+                      style={styles.iconButton}
+                    />
+                  </Card.Actions>
+                )}
+              </Card>
+            )}
+          />
+        )}
 
         <Snackbar
           visible={snackbarVisible}
@@ -433,13 +533,20 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
             label: 'Close',
             onPress: () => setSnackbarVisible(false),
           }}
-          style={{ backgroundColor: colors.error }}
+          style={{ backgroundColor: colors.primary }}
         >
           {snackbarMessage}
         </Snackbar>
       </BottomSheetView>
     </BottomSheet>
   );
+
+
+  function setViewOnlyMode() {
+    setEditMode(false);
+    setSelectedStudent(null);
+    setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance: 0, dueDate: '', users: [], paymentAllowed: 'new', transactions: [] });
+  }
 };
 
 const styles = StyleSheet.create({
@@ -495,6 +602,16 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 8,
     padding: 8,
+  },
+  headerContainer: {
+    paddingBottom: 16,
+    alignItems: 'center',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 
