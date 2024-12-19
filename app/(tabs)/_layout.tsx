@@ -6,7 +6,7 @@ import { useUser } from '@/context/UserContext';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const { notifications} = useUser();
+  const { notifications, userData} = useUser();
 
   return (
     <Tabs
@@ -36,19 +36,35 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="payment"
-        options={{
-          title: 'Payment',
-          headerShown: false,
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'card' : 'card-outline'}
-              color={color}
-              size={24}
-            />
-          ),
-        }}
-      />
+          name="students"
+          options={{
+            href: userData?.role === 'admin' ? undefined : null,
+            title: 'Students',
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? 'school' : 'school-outline'}
+                color={color}
+                size={24}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="payment"
+          options={{
+            href: userData?.role === 'admin' ? null : undefined,
+            title: 'Payment',
+            headerShown: false,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? 'card' : 'card-outline'}
+                color={color}
+                size={24}
+              />
+            ),
+          }}
+        />
       <Tabs.Screen
         name="notifications"
         options={{

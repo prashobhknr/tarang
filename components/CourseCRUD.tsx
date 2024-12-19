@@ -88,7 +88,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
       });
       setCourses((prev) => [...prev, { ...course }]);
       setShowForm(false);
-     // closeBottomSheet();
+      // closeBottomSheet();
     } catch (error) {
       console.error('Error adding course:', error);
     }
@@ -113,7 +113,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         }))
       );
       setShowForm(false);
-     // closeBottomSheet();
+      // closeBottomSheet();
     } catch (error) {
       console.error('Error updating course:', error);
     }
@@ -138,8 +138,8 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         titleStyle={[{ color: colors.text }, fonts.titleMedium]}
       />
       <Card.Content>
-        <Paragraph style={{ color: colors.muted }}>Info: {item.info}</Paragraph>
-        <Paragraph style={{ color: colors.muted }}>Due Date: {item.dueDate}</Paragraph>
+        <Paragraph style={{ color: colors.muted }}>Info: {String(item.info || '')}</Paragraph>
+        <Paragraph style={{ color: colors.muted }}>Due Date: {String(item.dueDate || '')}</Paragraph>
       </Card.Content>
       <Card.Actions>
         <IconButton
@@ -224,7 +224,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
                 onPress={selectedCourse ? updateCourse : addCourse}
                 style={[styles.saveButton, { backgroundColor: colors.success }]}
               >
-                {selectedCourse ? 'Update Course' : 'Add Course'}
+                {String(selectedCourse ? 'Update Course' : 'Add Course')}
               </Button>
             </>)}
         </BottomSheetView>
