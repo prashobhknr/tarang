@@ -78,6 +78,17 @@ const StudentsPage = () => {
         return { totalPrice, maxDueDate };
     };
 
+    const togglePaymentAllowed = (student: Student) => {
+        const updatedStudent = { ...student, paymentAllowed: student.paymentAllowed === 'locked' ? 'new' : 'locked' };
+    
+        // Update the student in state
+        const updatedStudents = students.map(s => s.ssn === student.ssn ? updatedStudent : s);
+        setStudents(updatedStudents);
+        
+        // Optionally update the database (if required)
+        updateDoc(doc(db, 'students', student.ssn), { paymentAllowed: updatedStudent.paymentAllowed });
+    };
+
     const addOrUpdateStudent = async () => {
         if (!newStudent.ssn || !newStudent.name || !newStudent.courses.length) {
             setSnackbarMessage('Name, SSN, and at least one course are required.');
@@ -171,6 +182,11 @@ const StudentsPage = () => {
                 <IconButton
                     icon="delete"
                     onPress={() => deleteStudent(item)}
+                    style={styles.iconButton}
+                />
+                <IconButton
+                    icon={item.paymentAllowed === 'locked' ? 'lock' : 'lock-open'}
+                    onPress={() => togglePaymentAllowed(item)} // Toggling lock/unlock
                     style={styles.iconButton}
                 />
             </Card.Actions>
