@@ -16,7 +16,7 @@ import {
   useTheme,
   FAB,
 } from 'react-native-paper';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Course } from '@/components/types';
@@ -173,13 +173,14 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         ref={bottomSheetRef}
         index={-1}
         snapPoints={snapPoints}
-        enableDynamicSizing={false}
+        enableDynamicSizing={true}
         enablePanDownToClose
         onClose={handleClose}
         keyboardBehavior="fillParent"
         backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
+          <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
           {!showForm ? (<><FlatList
             data={courses}
             keyExtractor={(item) => item.courseId}
@@ -227,6 +228,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
                 {String(selectedCourse ? 'Update Course' : 'Add Course')}
               </Button>
             </>)}
+            </BottomSheetScrollView>
         </BottomSheetView>
       </BottomSheet>
     </>
@@ -265,5 +267,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
+  },
+  scrollContainer: {
+    padding: 8,
+    paddingBottom:100,
   },
 });

@@ -12,7 +12,7 @@ import {
   Portal,
   Text
 } from 'react-native-paper';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useUser } from '@/context/UserContext';
 import { doc, collection, updateDoc, getDoc, setDoc, query, where, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -32,17 +32,17 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [] , expoPushTokens: [] as string[]});
+  const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [], expoPushTokens: [] as string[] });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
   const [studentToLoad, setStudentToLoad] = useState<Student | null>(null);
 
   const [editMode, setEditMode] = useState(false);
-    const { expoPushToken } = useNotification();
+  const { expoPushToken } = useNotification();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const snapPoints = useMemo(() => ['50%', '90%', '100%'], []);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -271,22 +271,22 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     }
 
 
-    newStudent.expoPushTokens = newStudent.expoPushTokens? newStudent.expoPushTokens : []
+    newStudent.expoPushTokens = newStudent.expoPushTokens ? newStudent.expoPushTokens : []
     // Ensure the user email is in the 'users' array
-    const updatedStudent : Student = {
+    const updatedStudent: Student = {
       ...newStudent,
-      expoPushTokens: (expoPushToken && !newStudent.expoPushTokens.includes(expoPushToken)) 
-      ? [...newStudent.expoPushTokens, expoPushToken]  
-      : newStudent.expoPushTokens,  
+      expoPushTokens: (expoPushToken && !newStudent.expoPushTokens.includes(expoPushToken))
+        ? [...newStudent.expoPushTokens, expoPushToken]
+        : newStudent.expoPushTokens,
       users: newStudent.users.includes(userData.email)
         ? newStudent.users
         : [...newStudent.users, userData.email] // Add the current user's email to users list
     };
-    
+
 
     let updatedStudents: Student[];
     if (selectedStudent) {
-      
+
       // Handle logic for updating a student with a new SSN
       if (selectedStudent.ssn !== newStudent.ssn) {
         setSnackbarMessage('You cannot change the SSN of an existing student.');
@@ -320,9 +320,9 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       const existingStudentSnapshot = await getDoc(doc(db, 'students', newStudent.ssn));
       if (existingStudentSnapshot.exists()) {
         const existingStudent = existingStudentSnapshot.data() as Student;
-        existingStudent.expoPushTokens = (expoPushToken && !existingStudent.expoPushTokens.includes(expoPushToken)) 
-        ? [...existingStudent.expoPushTokens, expoPushToken]: existingStudent.expoPushTokens,  
-        setStudentToLoad(existingStudent);
+        existingStudent.expoPushTokens = (expoPushToken && !existingStudent.expoPushTokens.includes(expoPushToken))
+          ? [...existingStudent.expoPushTokens, expoPushToken] : existingStudent.expoPushTokens,
+          setStudentToLoad(existingStudent);
         setConfirmDialogVisible(true);
         return;
       }
@@ -405,157 +405,163 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       snapPoints={snapPoints}
       backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       onClose={closeBottomSheet}
-      enableDynamicSizing={false}
+      enableDynamicSizing={true}
       enablePanDownToClose
-      keyboardBehavior="fillParent"
+      keyboardBehavior="interactive"
     >
-      <BottomSheetView style={styles.bottomSheetContent}>
-        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.heading, { color: colors.primary }]}>
-            Student Information
-          </Text>
-        </View>
-        <View style={styles.userInfo}>
-          <Text>Email: {userData.email}</Text>
-          <Text>Name: {userData.name}</Text>
-          <Text>Role: {userData.role}</Text>
-        </View>
-
-        <Button
-          onPress={() => editMode ? setViewOnlyMode() : setEditMode(true)}
-          mode="contained"
-          style={styles.toggleEditButton}
-        >
-          {editMode ? 'Cancel edit' : 'Add new student'}
-        </Button>
-
-        <TextInput
-          label="Phone Number"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
-          editable={editMode}
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-
-        <Portal>
-          <Dialog visible={confirmDialogVisible} onDismiss={() => setConfirmDialogVisible(false)}>
-            <Dialog.Title>Student Already Exists</Dialog.Title>
-            <Dialog.Content>
-              <Text>Student with SSN {studentToLoad?.ssn} name: {studentToLoad?.name} already exists. Would you like to load their details?</Text>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setConfirmDialogVisible(false)}>Cancel</Button>
-              <Button
-                onPress={() => {
-                  if (studentToLoad) {
-                    let updatedStudents: Student[] = students ? [...students, studentToLoad] : [studentToLoad];
-                    connectUserAndStudent(updatedStudents)
-                  }
-                  setConfirmDialogVisible(false);
-                }}
-              >
-                Load Details
-              </Button>
-            </Dialog.Actions>
-          </Dialog>
-        </Portal>
-
-        {editMode && (
-          <View>
-            <TextInput
-              label="Student Name"
-              value={newStudent.name}
-              onChangeText={(text) => setNewStudent({ ...newStudent, name: text })}
-              editable={editMode}
-              style={styles.input}
-            />
-            <TextInput
-              label="SSN"
-              value={newStudent.ssn}
-              onChangeText={(text) => setNewStudent({ ...newStudent, ssn: text })}
-              editable={editMode}
-              style={styles.input}
-              placeholder='YYMMDD-XXXX'
-            />
-            <Text>Courses:</Text>
-            {courses.map((course) => (
-              <View key={course.courseId}>
-                <TouchableOpacity
-                  style={[
-                    styles.selectableCourse,
-                    newStudent.courses.some((c) => c.courseId === course.courseId) && styles.selectedCourse,
-                  ]}
-                  onPress={() => toggleCourseSelection(course)}
-                >
-                  <View style={styles.courseDetails}>
-                    <Text>{course.name}</Text>
-                    <Text>{course.info}</Text>
-                    <Text>{`$${course.price}`}</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            ))}
-            <Button
-              onPress={addOrUpdateStudent}
-              mode="contained"
-              style={styles.saveButton}
-            >
-              {selectedStudent ? 'Update Student' : 'Add Student'}
-            </Button>
+      <BottomSheetView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
+        <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.heading, { color: colors.primary }]}>
+              Student Information
+            </Text>
           </View>
-        )}
+          <View style={styles.userInfo}>
+            <Text>Email: {userData.email}</Text>
+            <Text>Name: {userData.name}</Text>
+            <Text>Role: {userData.role}</Text>
+          </View>
 
-        {!editMode && renderEmptyStudentsMessage()}
+          <Button
+            onPress={() => editMode ? setViewOnlyMode() : setEditMode(true)}
+            mode="contained"
+            style={styles.toggleEditButton}
+          >
+            {editMode ? 'Cancel edit' : 'Add new student'}
+          </Button>
 
-        {!editMode && (
-          <FlatList
-            data={students}
-            keyExtractor={(item) => item.ssn}
-            renderItem={({ item }: ListRenderItemInfo<Student>) => (
-              <Card style={styles.card}>
-                <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
-                <Card.Content>
-                  <Paragraph>
-                    Courses: {item.courses.map((course) => course.name).join(', ')}
-                    {'\n'}Price: ${item.price}
-                    {'\n'}Due Date: {item.dueDate}
-                  </Paragraph>
-                </Card.Content>
-                {item.paymentAllowed === 'new' && (
-                  <Card.Actions style={styles.cardActions}>
-                    <IconButton
-                      icon="pencil"
-                      onPress={() => {
-                        setEditMode(true);
-                        setSelectedStudent(item);
-                        setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
-                      }}
-                      style={styles.iconButton}
-                    />
-                    <IconButton
-                      icon="delete"
-                      onPress={() => deleteStudent(item)}
-                      style={styles.iconButton}
-                    />
-                  </Card.Actions>
-                )}
-              </Card>
-            )}
+          <TextInput
+            label="Phone Number"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            editable={editMode}
+            style={styles.input}
+            keyboardType="phone-pad"
           />
-        )}
 
-        <Snackbar
-          visible={snackbarVisible}
-          onDismiss={() => setSnackbarVisible(false)}
-          action={{
-            label: 'Close',
-            onPress: () => setSnackbarVisible(false),
-          }}
-          style={{ backgroundColor: colors.primary }}
-        >
-          {snackbarMessage}
-        </Snackbar>
+          <Portal>
+            <Dialog visible={confirmDialogVisible} onDismiss={() => setConfirmDialogVisible(false)}>
+              <Dialog.Title>Student Already Exists</Dialog.Title>
+              <Dialog.Content>
+                <Text>Student with SSN {studentToLoad?.ssn} name: {studentToLoad?.name} already exists. Would you like to load their details?</Text>
+              </Dialog.Content>
+              <Dialog.Actions>
+                <Button onPress={() => setConfirmDialogVisible(false)}>Cancel</Button>
+                <Button
+                  onPress={() => {
+                    if (studentToLoad) {
+                      let updatedStudents: Student[] = students ? [...students, studentToLoad] : [studentToLoad];
+                      connectUserAndStudent(updatedStudents)
+                    }
+                    setConfirmDialogVisible(false);
+                  }}
+                >
+                  Load Details
+                </Button>
+              </Dialog.Actions>
+            </Dialog>
+          </Portal>
+
+          {editMode && (
+            <View>
+              <TextInput
+                label="Student Name"
+                value={newStudent.name}
+                onChangeText={(text) => setNewStudent({ ...newStudent, name: text })}
+                editable={editMode}
+                style={styles.input}
+              />
+              <TextInput
+                label="SSN"
+                value={newStudent.ssn}
+                onChangeText={(text) => setNewStudent({ ...newStudent, ssn: text })}
+                editable={editMode}
+                style={styles.input}
+                placeholder='YYMMDD-XXXX'
+              />
+              <Text>Courses:</Text>
+              {courses.map((course) => (
+                <View key={course.courseId}>
+                  <TouchableOpacity
+                    style={[
+                      styles.selectableCourse,
+                      {
+                        backgroundColor: newStudent.courses.some((c) => c.courseId === course.courseId)
+                          ? colors.secondary // Theme primary color for selected course
+                          : colors.surface, // Theme surface color for unselected course
+                      },
+                    ]}
+                    onPress={() => toggleCourseSelection(course)}
+                  >
+                    <View style={styles.courseDetails}>
+                      <Text>{course.name}</Text>
+                      <Text>{course.info}</Text>
+                      <Text>{`$${course.price}`}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <Button
+                onPress={addOrUpdateStudent}
+                mode="contained"
+                style={styles.saveButton}
+              >
+                {selectedStudent ? 'Update Student' : 'Add'}
+              </Button>
+            </View>
+          )}
+
+          {!editMode && renderEmptyStudentsMessage()}
+
+          {!editMode && (
+            <FlatList
+              data={students}
+              keyExtractor={(item) => item.ssn}
+              renderItem={({ item }: ListRenderItemInfo<Student>) => (
+                <Card style={styles.card}>
+                  <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
+                  <Card.Content>
+                    <Paragraph>
+                      Courses: {item.courses.map((course) => course.name).join(', ')}
+                      {'\n'}Price: ${item.price}
+                      {'\n'}Due Date: {item.dueDate}
+                    </Paragraph>
+                  </Card.Content>
+                  {item.paymentAllowed === 'new' && (
+                    <Card.Actions style={styles.cardActions}>
+                      <IconButton
+                        icon="pencil"
+                        onPress={() => {
+                          setEditMode(true);
+                          setSelectedStudent(item);
+                          setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
+                        }}
+                        style={styles.iconButton}
+                      />
+                      <IconButton
+                        icon="delete"
+                        onPress={() => deleteStudent(item)}
+                        style={styles.iconButton}
+                      />
+                    </Card.Actions>
+                  )}
+                </Card>
+              )}
+            />
+          )}
+
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            action={{
+              label: 'Close',
+              onPress: () => setSnackbarVisible(false),
+            }}
+            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
+          >
+            {snackbarMessage}
+          </Snackbar>
+        </BottomSheetScrollView>
       </BottomSheetView>
     </BottomSheet>
   );
@@ -580,15 +586,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.5,
     elevation: 5,
-  },
-  selectedCourse: {
-    backgroundColor: '#d3ffd3',
   },
   courseDetails: {
     flex: 1,
@@ -624,6 +626,10 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  scrollContainer: {
+    padding: 8,
+    paddingBottom: 100,
   },
 });
 

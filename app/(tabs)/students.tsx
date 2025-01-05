@@ -270,6 +270,7 @@ const StudentsPage = () => {
                     label: 'Close',
                     onPress: () => setSnackbarVisible(false),
                 }}
+                style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
             >
                 {snackbarMessage}
             </Snackbar>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, StatusBar, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme, IconButton, Chip, Button as PaperButton, Snackbar } from 'react-native-paper'; // Import useTheme for dynamic theming
@@ -19,6 +19,7 @@ export default function PaymentScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const snapPoints = useMemo(() => ['50%', '90%'], []);
 
   useEffect(() => {
     if (!userData?.email) {
@@ -182,7 +183,7 @@ export default function PaymentScreen() {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={Snackbar.DURATION_SHORT}
-        style={{ backgroundColor: colors.primary }}
+        style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
       >
         {snackbarMessage}
       </Snackbar>
@@ -285,8 +286,8 @@ export default function PaymentScreen() {
       )}
 
       <BottomSheet ref={bottomSheetRef}
-        snapPoints={['25%', '50%']}
-        enableDynamicSizing={false}
+        snapPoints={snapPoints}
+        enableDynamicSizing={true}
         enablePanDownToClose
         index={-1}
         backdropComponent={(props) => (
