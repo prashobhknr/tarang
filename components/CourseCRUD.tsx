@@ -3,7 +3,6 @@ import {
   View,
   StyleSheet,
   FlatList,
-  KeyboardAvoidingView,
   ListRenderItemInfo,
   Text
 } from 'react-native';
@@ -14,7 +13,7 @@ import {
   IconButton,
   Paragraph,
   useTheme,
-  FAB,
+
 } from 'react-native-paper';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, Timestamp } from 'firebase/firestore';
@@ -131,7 +130,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
   };
 
   const renderCourse = ({ item }: ListRenderItemInfo<Course>) => (
-    <Card style={styles.card}>
+    <Card style={[styles.card, { backgroundColor: colors.surface }]}>
       <Card.Title
         title={item.name}
         subtitle={`$${item.price}`}
@@ -179,20 +178,23 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         keyboardBehavior="fillParent"
         backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       >
-        <BottomSheetView style={styles.bottomSheetContent}>
-          <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
-          {!showForm ? (<><FlatList
-            data={courses}
-            keyExtractor={(item) => item.courseId}
-            renderItem={renderCourse}
-          />
-            <FAB
-              icon="plus"
-              onPress={() => {
-                resetForm();
-              }}
-              style={[styles.fab, { backgroundColor: colors.primary }]}
-            /> </>) :
+        <BottomSheetView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
+          {/* <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>  */}
+          {!showForm ? (<>
+            <Button
+              mode="contained"
+              onPress={() => resetForm()}
+              style={[styles.addButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={{ color: colors.onPrimary }}>Add New Course</Text>
+            </Button>
+            <FlatList
+              data={courses}
+              keyExtractor={(item) => item.courseId}
+              renderItem={renderCourse}
+            />
+
+          </>) :
             (<>
               <TextInput
                 label="Course Name"
@@ -228,7 +230,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
                 {String(selectedCourse ? 'Update Course' : 'Add Course')}
               </Button>
             </>)}
-            </BottomSheetScrollView>
+          {/* </BottomSheetScrollView>  */}
         </BottomSheetView>
       </BottomSheet>
     </>
@@ -263,13 +265,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 8,
   },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-  },
   scrollContainer: {
     padding: 8,
-    paddingBottom:100,
+    paddingBottom: 100,
+  },
+  addButton: {
+    width: '100%',
+    borderRadius: 8,
+    marginBottom: 8
   },
 });

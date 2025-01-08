@@ -160,7 +160,7 @@ const StudentsPage = () => {
     );
 
     const renderStudentItem = (item: Student) => (
-        <Card style={styles.card}>
+        <Card style={[styles.card, { backgroundColor: colors.surface }]}>
             <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
             <Card.Content>
                 <Paragraph>

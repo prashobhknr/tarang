@@ -518,7 +518,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
               data={students}
               keyExtractor={(item) => item.ssn}
               renderItem={({ item }: ListRenderItemInfo<Student>) => (
-                <Card style={styles.card}>
+                <Card style={[styles.card, { backgroundColor: colors.surface }]}>
                   <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
                   <Card.Content>
                     <Paragraph>
