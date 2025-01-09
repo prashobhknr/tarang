@@ -23,7 +23,6 @@ export default function PaymentScreen() {
 
   useEffect(() => {
     if (!userData?.email) {
-      console.error('User email is missing. Cannot fetch students.');
       return;
     }
     fetchStudents();
@@ -62,9 +61,10 @@ export default function PaymentScreen() {
   };
 
   // Function to create and add a notification
-  const addNotification = async (notification: CustomNotification) => {
+  const addNotification = async (notification: CustomNotification, user: String) => {
     try {
-      const notificationsDocRef = doc(db, 'notifications', 'admin');
+      console.log('adding notification', user, notification)
+      const notificationsDocRef = doc(db, 'notifications', user);
       const notificationsDoc = await getDoc(notificationsDocRef);
 
       if (notificationsDoc.exists()) {
@@ -123,9 +123,8 @@ export default function PaymentScreen() {
           timestamp: new Date().toISOString(),
           avatar: 'cash',
         };
-
-        console.log('adding notification', newNotification)
-        await addNotification(newNotification);
+        await addNotification(newNotification, 'admin');
+        await addNotification(newNotification, userData.email);
 
       } else {
         const errorData = await response.json();
@@ -183,11 +182,43 @@ export default function PaymentScreen() {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={Snackbar.DURATION_SHORT}
-        style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
+        style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
       >
         {snackbarMessage}
       </Snackbar>
-      <View
+
+      {selectedStudent?.paymentAllowed === 'vacation' ? (
+        <View style={[styles.balanceContainer, { backgroundColor: colors.surface }]}>
+          <IconButton icon="bell" size={40} iconColor={colors.primary} />
+          <Text style={[{ color: colors.onBackground }]}>
+            On Vacation
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.balanceContainer,
+            { backgroundColor: colors.surface, shadowColor: colors.primary },
+          ]}
+        >
+          <Text style={[styles.balanceText, { color: colors.onBackground }]}>Balance</Text>
+          <Text style={[styles.balanceAmount, { color: colors.onBackground }]}>
+            {formattedBalance} SEK
+          </Text>
+        </View>
+      )}
+
+      {selectedStudent?.paymentAllowed !== 'vacation' && (
+        <Button
+          label="Pay with Swish"
+          theme="swish"
+          onPress={handlePayment}
+          isLoading={isLoading}
+          disabled={!selectedStudent || selectedStudent.price === 0}
+        />
+      )}
+
+      {/* <View
         style={[
           styles.balanceContainer,
           { backgroundColor: colors.surface, shadowColor: colors.primary },
@@ -199,7 +230,7 @@ export default function PaymentScreen() {
         </Text>
       </View>
       <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading}
-        disabled={!selectedStudent || selectedStudent.price === 0} />
+        disabled={!selectedStudent || selectedStudent.price === 0} /> */}
 
       {/* Add Selected Student Label */}
       <View style={styles.selectedStudentContainer}>

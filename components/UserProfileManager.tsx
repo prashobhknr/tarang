@@ -35,7 +35,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [], expoPushTokens: [] as string[] });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
+  const [confirmDialogConfig, setConfirmDialogConfig] = useState<{
+    title: string;
+    content: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [studentToLoad, setStudentToLoad] = useState<Student | null>(null);
 
   const [editMode, setEditMode] = useState(false);
@@ -323,7 +327,21 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         existingStudent.expoPushTokens = (expoPushToken && !existingStudent.expoPushTokens.includes(expoPushToken))
           ? [...existingStudent.expoPushTokens, expoPushToken] : existingStudent.expoPushTokens,
           setStudentToLoad(existingStudent);
-        setConfirmDialogVisible(true);
+        setConfirmDialogConfig({
+          title: "Student Already Exists",
+          content: `Student with SSN "${existingStudent?.ssn}" name: "${existingStudent?.name}" already exists. Would you like to load their details?`,
+          onConfirm: async () => {
+            try {
+              if (existingStudent) {
+                let updatedStudents: Student[] = students ? [...students, existingStudent] : [existingStudent];
+                connectUserAndStudent(updatedStudents)
+                setConfirmDialogConfig(null);
+              }
+            } catch (error) {
+              console.error('Error updating payment status:', error);
+            }
+          },
+        });
         return;
       }
 
@@ -349,7 +367,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       // set an admin notification
       const newNotification = {
         id: Date.now(), // Use a unique ID based on timestamp
-        title: 'New Student Created',
+        title: 'Student data changed',
         subtitle: 'validate',
         description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} courses: ${newStudent.courses.map(course => course.name).join(", ")} `,
         timestamp: new Date().toISOString(),
@@ -387,14 +405,25 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   // };
 
   const notifyStatusChange = async (student: Student, newStatus: 'vacation' | 'new') => {
-    try {
-      const updatedStudents = students.map((s) =>
-        s.ssn === student.ssn ? { ...s, paymentAllowed: newStatus } : s
-      );
-      setStudents(updatedStudents); 
-      console.log('updated',updatedStudents)
-      //await saveFormData(updatedStudents); 
+    setConfirmDialogConfig({
+      title: "Student Vacation Notification",
+      content: `Student with SSN "${student?.ssn}" name: "${student?.name}" is setting as "${newStatus}". Would you like to send notification to admin?`,
+      onConfirm: async () => {
+        try {
+          student.paymentAllowed = newStatus;
+          const updatedStudents = students.map((s) =>
+            s.ssn === student.ssn ? student : s
+          );      
+            await setDoc(doc(db, 'students', student.ssn), student, { merge: true });
+            setStudents(updatedStudents);
+            setConfirmDialogConfig(null);
+        } catch (error) {
+          console.error('Error updating vacation status:', error);
+        }
+      },
+    });
 
+    try {
       // Prepare a notification based on the status
       const notificationMessage =
         newStatus === 'vacation'
@@ -407,13 +436,9 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         subtitle: newStatus === 'vacation' ? 'Vacation Request' : 'Vacation Ended',
         description: notificationMessage,
         timestamp: new Date().toISOString(),
-        avatar: newStatus === 'vacation' ? 'vacation' : 'resume',
+        avatar: newStatus === 'vacation' ? 'bell' : 'bell-remove',
       };
-
-      //console.log('Adding notification', newNotification);
-
-      // Add the notification
-      await addNotification(newNotification);
+       await addNotification(newNotification);
     } catch (error) {
       console.error('Error sending notification:', error);
     }
@@ -474,23 +499,21 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           />
 
           <Portal>
-            <Dialog visible={confirmDialogVisible} onDismiss={() => setConfirmDialogVisible(false)}>
-              <Dialog.Title>Student Already Exists</Dialog.Title>
+            <Dialog
+              visible={!!confirmDialogConfig}
+              onDismiss={() => setConfirmDialogConfig(null)}
+            >
+              <Dialog.Title>{confirmDialogConfig?.title}</Dialog.Title>
               <Dialog.Content>
-                <Text>Student with SSN {studentToLoad?.ssn} name: {studentToLoad?.name} already exists. Would you like to load their details?</Text>
+                <Text>{confirmDialogConfig?.content}</Text>
               </Dialog.Content>
               <Dialog.Actions>
-                <Button onPress={() => setConfirmDialogVisible(false)}>Cancel</Button>
-                <Button
-                  onPress={() => {
-                    if (studentToLoad) {
-                      let updatedStudents: Student[] = students ? [...students, studentToLoad] : [studentToLoad];
-                      connectUserAndStudent(updatedStudents)
-                    }
-                    setConfirmDialogVisible(false);
-                  }}
-                >
-                  Load Details
+                <Button onPress={() => setConfirmDialogConfig(null)}>Cancel</Button>
+                <Button onPress={() => {
+                  confirmDialogConfig?.onConfirm();
+                  setConfirmDialogConfig(null);
+                }}>
+                  Confirm
                 </Button>
               </Dialog.Actions>
             </Dialog>
@@ -561,7 +584,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                       {'\n'}Due Date: {item.dueDate}
                     </Paragraph>
                   </Card.Content>
-                  {item.paymentAllowed === 'new' && (
+                  {(
                     <Card.Actions style={styles.cardActions}>
                       <IconButton
                         icon="pencil"
@@ -578,17 +601,21 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                         onPress={() => deleteStudent(item)}
                         style={styles.iconButton}
                       /> */}
-                      <IconButton
-                        icon={item.paymentAllowed === 'new' ? 'bell' : 'bell-cancel'} 
-                        onPress={() =>
-                          notifyStatusChange(
-                            item,
-                            item.paymentAllowed === 'vacation' ? 'new' : 'vacation'
-                          )
-                        }
-                        style={[styles.iconButton]}
-                        iconColor={colors.primary} // Customize to your theme
-                      />
+                      {item.paymentAllowed === 'new' ? (
+                        <IconButton
+                          icon="bell"
+                          onPress={() => notifyStatusChange(item, 'vacation')}
+                          style={[styles.iconButton]}
+                          iconColor={colors.primary}
+                        />
+                      ) : (
+                        <IconButton
+                          icon="bell-off"
+                          onPress={() => notifyStatusChange(item, 'new')}
+                          style={[styles.iconButton]}
+                          iconColor={colors.primary}
+                        />
+                      )}
                     </Card.Actions>
                   )}
                 </Card>
