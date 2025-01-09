@@ -370,21 +370,55 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
 
 
 
-  const deleteStudent = async (student: Student) => {
-    const updatedStudents = students.filter((s) => s.ssn !== student.ssn);
-    setStudents(updatedStudents);
-    await saveFormData(updatedStudents);
+  // const deleteStudent = async (student: Student) => {
+  //   const updatedStudents = students.filter((s) => s.ssn !== student.ssn);
+  //   setStudents(updatedStudents);
+  //   await saveFormData(updatedStudents);
 
-    // if (updatedStudents.length === 0) {
-    //   try {
-    //     const studentRef = doc(db, 'students', student.ssn);
-    //     await deleteDoc(studentRef);
-    //     console.log('Student deleted and user data updated.');
-    //   } catch (error) {
-    //     console.error('Error deleting student:', error);
-    //   }
-    // }
+  //   // if (updatedStudents.length === 0) {
+  //   //   try {
+  //   //     const studentRef = doc(db, 'students', student.ssn);
+  //   //     await deleteDoc(studentRef);
+  //   //     console.log('Student deleted and user data updated.');
+  //   //   } catch (error) {
+  //   //     console.error('Error deleting student:', error);
+  //   //   }
+  //   // }
+  // };
+
+  const notifyStatusChange = async (student: Student, newStatus: 'vacation' | 'new') => {
+    try {
+      const updatedStudents = students.map((s) =>
+        s.ssn === student.ssn ? { ...s, paymentAllowed: newStatus } : s
+      );
+      setStudents(updatedStudents); 
+      console.log('updated',updatedStudents)
+      //await saveFormData(updatedStudents); 
+
+      // Prepare a notification based on the status
+      const notificationMessage =
+        newStatus === 'vacation'
+          ? `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has notified for vacation.`
+          : `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has resumed regular status.`;
+
+      const newNotification = {
+        id: Date.now(),
+        title: newStatus === 'vacation' ? 'Vacation Notification' : 'Vacation Over Notification',
+        subtitle: newStatus === 'vacation' ? 'Vacation Request' : 'Vacation Ended',
+        description: notificationMessage,
+        timestamp: new Date().toISOString(),
+        avatar: newStatus === 'vacation' ? 'vacation' : 'resume',
+      };
+
+      //console.log('Adding notification', newNotification);
+
+      // Add the notification
+      await addNotification(newNotification);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
   };
+
 
 
   const renderEmptyStudentsMessage = () => {
@@ -536,12 +570,24 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                           setSelectedStudent(item);
                           setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
                         }}
-                        style={styles.iconButton}
+                        style={[styles.iconButton]}
+                        iconColor={colors.primary}
                       />
-                      <IconButton
+                      {/* <IconButton
                         icon="delete"
                         onPress={() => deleteStudent(item)}
                         style={styles.iconButton}
+                      /> */}
+                      <IconButton
+                        icon={item.paymentAllowed === 'new' ? 'bell' : 'bell-cancel'} 
+                        onPress={() =>
+                          notifyStatusChange(
+                            item,
+                            item.paymentAllowed === 'vacation' ? 'new' : 'vacation'
+                          )
+                        }
+                        style={[styles.iconButton]}
+                        iconColor={colors.primary} // Customize to your theme
                       />
                     </Card.Actions>
                   )}
@@ -557,7 +603,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
               label: 'Close',
               onPress: () => setSnackbarVisible(false),
             }}
-            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
+            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
           >
             {snackbarMessage}
           </Snackbar>
