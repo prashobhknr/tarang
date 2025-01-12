@@ -46,7 +46,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { expoPushToken } = useNotification();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '90%', '100%'], []);
+  const snapPoints = useMemo(() => ['50%', '90%'], []);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -385,25 +385,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     setSelectedStudent(null);
     setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance: 0, dueDate: '', users: [], paymentAllowed: 'new', transactions: [], expoPushTokens: [] });
   }
-
-
-
-  // const deleteStudent = async (student: Student) => {
-  //   const updatedStudents = students.filter((s) => s.ssn !== student.ssn);
-  //   setStudents(updatedStudents);
-  //   await saveFormData(updatedStudents);
-
-  //   // if (updatedStudents.length === 0) {
-  //   //   try {
-  //   //     const studentRef = doc(db, 'students', student.ssn);
-  //   //     await deleteDoc(studentRef);
-  //   //     console.log('Student deleted and user data updated.');
-  //   //   } catch (error) {
-  //   //     console.error('Error deleting student:', error);
-  //   //   }
-  //   // }
-  // };
-
   const notifyStatusChange = async (student: Student, newStatus: 'vacation' | 'new') => {
     setConfirmDialogConfig({
       title: "Student Vacation Notification",
@@ -422,7 +403,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         }
       },
     });
-
     try {
       // Prepare a notification based on the status
       const notificationMessage =
@@ -443,9 +423,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       console.error('Error sending notification:', error);
     }
   };
-
-
-
   const renderEmptyStudentsMessage = () => {
     if (students.length === 0) {
       return (
@@ -464,12 +441,13 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       snapPoints={snapPoints}
       backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       onClose={closeBottomSheet}
-      enableDynamicSizing={true}
+      enableDynamicSizing={false}
       enablePanDownToClose
+      enableContentPanningGesture={true}
       keyboardBehavior="interactive"
     >
-      <BottomSheetView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
-        <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
+ 
+        <BottomSheetScrollView style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
             <Text style={[styles.heading, { color: colors.primary }]}>
               Student Information
@@ -566,11 +544,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                 {selectedStudent ? 'Update Student' : 'Add'}
               </Button>
             </View>
-          )}
+          )} 
 
           {!editMode && renderEmptyStudentsMessage()}
 
-          {!editMode && (
+         {!editMode && (
             <FlatList
               data={students}
               keyExtractor={(item) => item.ssn}
@@ -596,11 +574,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                         style={[styles.iconButton]}
                         iconColor={colors.primary}
                       />
-                      {/* <IconButton
-                        icon="delete"
-                        onPress={() => deleteStudent(item)}
-                        style={styles.iconButton}
-                      /> */}
                       {item.paymentAllowed === 'new' ? (
                         <IconButton
                           icon="bell"
@@ -621,7 +594,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                 </Card>
               )}
             />
-          )}
+          )} 
 
           <Snackbar
             visible={snackbarVisible}
@@ -635,7 +608,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
             {snackbarMessage}
           </Snackbar>
         </BottomSheetScrollView>
-      </BottomSheetView>
     </BottomSheet>
   );
 };
@@ -670,6 +642,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 16,
+    marginBottom: 32
   },
   toggleEditButton: {
     marginTop: 16,
@@ -701,6 +674,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContainer: {
+    flexGrow: 1, 
     padding: 8,
     paddingBottom: 100,
   },

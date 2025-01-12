@@ -10,6 +10,7 @@ import { ThemeProvider, useThemeSwitcher } from '@/context/ThemeContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 LogBox.ignoreAllLogs(true); // Suppresses all log warnings
 
@@ -40,7 +41,7 @@ Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
 
 export default function RootLayout() {
   return (
-    
+    <SafeAreaView style={{ flex: 1 }}>
     <Auth0Provider domain="tarangschool.eu.auth0.com" clientId="CTXGH6NyrWAEQJJ49NC2oldx3DDlqElc">
       <UserProvider>
         <ThemeProvider>
@@ -50,6 +51,7 @@ export default function RootLayout() {
         </ThemeProvider>
       </UserProvider>
     </Auth0Provider>
+    </SafeAreaView>
     
   );
 }

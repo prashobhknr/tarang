@@ -14,7 +14,7 @@ import { useNotification } from "@/context/NotificationContext";
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
-  const [isCourseSheetVisible, setIsCourseSheetVisible] = useState(false); // Control for CourseCRUD's BottomSheet
+  const [isCourseSheetVisible, setIsCourseSheetVisible] = useState(false); 
   const [isProfileEdit, setIsProfileEdit] = useState(false);
   const { expoPushToken } = useNotification();
 

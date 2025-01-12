@@ -172,14 +172,13 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
         ref={bottomSheetRef}
         index={-1}
         snapPoints={snapPoints}
-        enableDynamicSizing={true}
+        enableDynamicSizing={false}
         enablePanDownToClose
         onClose={handleClose}
         keyboardBehavior="fillParent"
         backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       >
-        <BottomSheetView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
-          {/* <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>  */}
+        <BottomSheetScrollView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
           {!showForm ? (<>
             <Button
               mode="contained"
@@ -230,8 +229,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
                 {String(selectedCourse ? 'Update Course' : 'Add Course')}
               </Button>
             </>)}
-          {/* </BottomSheetScrollView>  */}
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheet>
     </>
   );
