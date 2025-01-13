@@ -25,7 +25,7 @@ export default function NotificationsScreen() {
           }
           // For regular users, fetch notifications from their specific email ID document
           else {
-            notificationsDocRef = doc(db, 'notifications', userData.emailId);
+            notificationsDocRef = doc(db, 'notifications', userData.email);
           }
 
           const notificationsSnap = await getDoc(notificationsDocRef);

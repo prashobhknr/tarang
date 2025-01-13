@@ -35,14 +35,18 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [], expoPushTokens: [] as string[] });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [confirmDialogVisible, setConfirmDialogVisible] = useState(false);
+  const [confirmDialogConfig, setConfirmDialogConfig] = useState<{
+    title: string;
+    content: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [studentToLoad, setStudentToLoad] = useState<Student | null>(null);
 
   const [editMode, setEditMode] = useState(false);
   const { expoPushToken } = useNotification();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '90%', '100%'], []);
+  const snapPoints = useMemo(() => ['50%', '90%'], []);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -323,7 +327,21 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         existingStudent.expoPushTokens = (expoPushToken && !existingStudent.expoPushTokens.includes(expoPushToken))
           ? [...existingStudent.expoPushTokens, expoPushToken] : existingStudent.expoPushTokens,
           setStudentToLoad(existingStudent);
-        setConfirmDialogVisible(true);
+        setConfirmDialogConfig({
+          title: "Student Already Exists",
+          content: `Student with SSN "${existingStudent?.ssn}" name: "${existingStudent?.name}" already exists. Would you like to load their details?`,
+          onConfirm: async () => {
+            try {
+              if (existingStudent) {
+                let updatedStudents: Student[] = students ? [...students, existingStudent] : [existingStudent];
+                connectUserAndStudent(updatedStudents)
+                setConfirmDialogConfig(null);
+              }
+            } catch (error) {
+              console.error('Error updating payment status:', error);
+            }
+          },
+        });
         return;
       }
 
@@ -349,7 +367,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       // set an admin notification
       const newNotification = {
         id: Date.now(), // Use a unique ID based on timestamp
-        title: 'New Student Created',
+        title: 'Student data changed',
         subtitle: 'validate',
         description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} courses: ${newStudent.courses.map(course => course.name).join(", ")} `,
         timestamp: new Date().toISOString(),
@@ -367,26 +385,44 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     setSelectedStudent(null);
     setNewStudent({ name: '', ssn: '', courses: [], price: 0, advance: 0, dueDate: '', users: [], paymentAllowed: 'new', transactions: [], expoPushTokens: [] });
   }
+  const notifyStatusChange = async (student: Student, newStatus: 'vacation' | 'new') => {
+    setConfirmDialogConfig({
+      title: "Student Vacation Notification",
+      content: `Student with SSN "${student?.ssn}" name: "${student?.name}" is setting as "${newStatus}". Would you like to send notification to admin?`,
+      onConfirm: async () => {
+        try {
+          student.paymentAllowed = newStatus;
+          const updatedStudents = students.map((s) =>
+            s.ssn === student.ssn ? student : s
+          );      
+            await setDoc(doc(db, 'students', student.ssn), student, { merge: true });
+            setStudents(updatedStudents);
+            setConfirmDialogConfig(null);
+        } catch (error) {
+          console.error('Error updating vacation status:', error);
+        }
+      },
+    });
+    try {
+      // Prepare a notification based on the status
+      const notificationMessage =
+        newStatus === 'vacation'
+          ? `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has notified for vacation.`
+          : `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has resumed regular status.`;
 
-
-
-  const deleteStudent = async (student: Student) => {
-    const updatedStudents = students.filter((s) => s.ssn !== student.ssn);
-    setStudents(updatedStudents);
-    await saveFormData(updatedStudents);
-
-    // if (updatedStudents.length === 0) {
-    //   try {
-    //     const studentRef = doc(db, 'students', student.ssn);
-    //     await deleteDoc(studentRef);
-    //     console.log('Student deleted and user data updated.');
-    //   } catch (error) {
-    //     console.error('Error deleting student:', error);
-    //   }
-    // }
+      const newNotification = {
+        id: Date.now(),
+        title: newStatus === 'vacation' ? 'Vacation Notification' : 'Vacation Over Notification',
+        subtitle: newStatus === 'vacation' ? 'Vacation Request' : 'Vacation Ended',
+        description: notificationMessage,
+        timestamp: new Date().toISOString(),
+        avatar: newStatus === 'vacation' ? 'bell' : 'bell-remove',
+      };
+       await addNotification(newNotification);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
   };
-
-
   const renderEmptyStudentsMessage = () => {
     if (students.length === 0) {
       return (
@@ -405,12 +441,13 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       snapPoints={snapPoints}
       backdropComponent={(props) => <BottomSheetBackdrop {...props} />}
       onClose={closeBottomSheet}
-      enableDynamicSizing={true}
+      enableDynamicSizing={false}
       enablePanDownToClose
+      enableContentPanningGesture={true}
       keyboardBehavior="interactive"
     >
-      <BottomSheetView style={[styles.bottomSheetContent, { backgroundColor: colors.background }]}>
-        <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
+ 
+        <BottomSheetScrollView style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
             <Text style={[styles.heading, { color: colors.primary }]}>
               Student Information
@@ -440,23 +477,21 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           />
 
           <Portal>
-            <Dialog visible={confirmDialogVisible} onDismiss={() => setConfirmDialogVisible(false)}>
-              <Dialog.Title>Student Already Exists</Dialog.Title>
+            <Dialog
+              visible={!!confirmDialogConfig}
+              onDismiss={() => setConfirmDialogConfig(null)}
+            >
+              <Dialog.Title>{confirmDialogConfig?.title}</Dialog.Title>
               <Dialog.Content>
-                <Text>Student with SSN {studentToLoad?.ssn} name: {studentToLoad?.name} already exists. Would you like to load their details?</Text>
+                <Text>{confirmDialogConfig?.content}</Text>
               </Dialog.Content>
               <Dialog.Actions>
-                <Button onPress={() => setConfirmDialogVisible(false)}>Cancel</Button>
-                <Button
-                  onPress={() => {
-                    if (studentToLoad) {
-                      let updatedStudents: Student[] = students ? [...students, studentToLoad] : [studentToLoad];
-                      connectUserAndStudent(updatedStudents)
-                    }
-                    setConfirmDialogVisible(false);
-                  }}
-                >
-                  Load Details
+                <Button onPress={() => setConfirmDialogConfig(null)}>Cancel</Button>
+                <Button onPress={() => {
+                  confirmDialogConfig?.onConfirm();
+                  setConfirmDialogConfig(null);
+                }}>
+                  Confirm
                 </Button>
               </Dialog.Actions>
             </Dialog>
@@ -509,11 +544,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                 {selectedStudent ? 'Update Student' : 'Add'}
               </Button>
             </View>
-          )}
+          )} 
 
           {!editMode && renderEmptyStudentsMessage()}
 
-          {!editMode && (
+         {!editMode && (
             <FlatList
               data={students}
               keyExtractor={(item) => item.ssn}
@@ -527,7 +562,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                       {'\n'}Due Date: {item.dueDate}
                     </Paragraph>
                   </Card.Content>
-                  {item.paymentAllowed === 'new' && (
+                  {(
                     <Card.Actions style={styles.cardActions}>
                       <IconButton
                         icon="pencil"
@@ -536,19 +571,30 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
                           setSelectedStudent(item);
                           setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
                         }}
-                        style={styles.iconButton}
+                        style={[styles.iconButton]}
+                        iconColor={colors.primary}
                       />
-                      <IconButton
-                        icon="delete"
-                        onPress={() => deleteStudent(item)}
-                        style={styles.iconButton}
-                      />
+                      {item.paymentAllowed === 'new' ? (
+                        <IconButton
+                          icon="bell"
+                          onPress={() => notifyStatusChange(item, 'vacation')}
+                          style={[styles.iconButton]}
+                          iconColor={colors.primary}
+                        />
+                      ) : (
+                        <IconButton
+                          icon="bell-off"
+                          onPress={() => notifyStatusChange(item, 'new')}
+                          style={[styles.iconButton]}
+                          iconColor={colors.primary}
+                        />
+                      )}
                     </Card.Actions>
                   )}
                 </Card>
               )}
             />
-          )}
+          )} 
 
           <Snackbar
             visible={snackbarVisible}
@@ -557,12 +603,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
               label: 'Close',
               onPress: () => setSnackbarVisible(false),
             }}
-            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
+            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
           >
             {snackbarMessage}
           </Snackbar>
         </BottomSheetScrollView>
-      </BottomSheetView>
     </BottomSheet>
   );
 };
@@ -597,6 +642,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 16,
+    marginBottom: 32
   },
   toggleEditButton: {
     marginTop: 16,
@@ -628,6 +674,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContainer: {
+    flexGrow: 1, 
     padding: 8,
     paddingBottom: 100,
   },
