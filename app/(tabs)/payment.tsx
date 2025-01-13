@@ -19,7 +19,7 @@ export default function PaymentScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const snapPoints = useMemo(() => ['50%', '95%'], []);
 
   useEffect(() => {
     if (!userData?.email) {
@@ -175,7 +175,7 @@ export default function PaymentScreen() {
 
   return (
     <View style={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
+
       backgroundColor: colors.background
     }]}>
       <Snackbar

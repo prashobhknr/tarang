@@ -46,7 +46,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { expoPushToken } = useNotification();
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const snapPoints = useMemo(() => ['50%', '95%'], []);
 
   React.useEffect(() => {
     if (isVisible) {

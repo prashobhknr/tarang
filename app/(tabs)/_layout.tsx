@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme, Badge } from 'react-native-paper';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet , Platform} from 'react-native';
 import { useUser } from '@/context/UserContext';
 
 export default function TabLayout() {
@@ -15,7 +15,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: colors.surface },
         headerShadowVisible: false,
         headerTintColor: colors.secondary,
-        tabBarStyle: { backgroundColor: colors.surface },
+        tabBarStyle: { backgroundColor: colors.surface},
         tabBarLabelStyle: {
           fontWeight: "bold",
           },
@@ -70,6 +70,7 @@ export default function TabLayout() {
         options={{
           title: 'Notifications',
           headerShown: false,
+          // tabBarBadge: notifications.length  ,
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.iconWithBadge}>
               <Ionicons
@@ -79,7 +80,7 @@ export default function TabLayout() {
               />
               {notifications.length > 0 && (
                 <Badge style={styles.badge}>{notifications.length}</Badge>
-              )}
+              )} 
             </View>
           ),
         }}

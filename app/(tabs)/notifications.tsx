@@ -99,7 +99,6 @@ export default function NotificationsScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
       backgroundColor: theme.colors.background,
     }]}>
       {notifications.length === 0 ? (
