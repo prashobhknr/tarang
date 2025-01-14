@@ -10,7 +10,8 @@ import {
   Snackbar,
   Dialog,
   Portal,
-  Text
+  Text,
+  HelperText
 } from 'react-native-paper';
 import BottomSheet, { BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useUser } from '@/context/UserContext';
@@ -31,6 +32,9 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   const { userData, courses, students, setCourses, setUserData, setStudents } = useUser();
   const { colors } = useTheme();
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [validatePhoneError, setValidatePhoneError] = useState('');
+  const [validateSsnError, setValidateSsnError] = useState('');
+  const [validateNameError, setValidateNameError] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [newStudent, setNewStudent] = useState({ name: '', ssn: '', courses: [] as Course[], price: 0, advance: 0, dueDate: '', users: [] as string[], paymentAllowed: 'new', transactions: [] as [], expoPushTokens: [] as string[] });
   const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -187,16 +191,38 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     return { totalPrice, maxDueDate };
   };
 
+  const validatePhoneNumber = (phone: string) => {
+    const phoneRegex = /^(\+?\d{1,3})?[-.\s]?(\d{2,4})[-.\s]?(\d{3})[-.\s]?(\d{3,4})$/;
+    if (!phone || !phoneRegex.test(phone)) {
+      setValidatePhoneError('Invalid phone number. Please use a valid format.');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStudentName = (name:string) => {
+    // Regular expression for name validation
+    const nameRegex = /^[a-zA-Z\s'-]{2,50}$/;
+    if (!name || name.trim() === '') {
+      setValidateNameError('Name cannot be empty.')
+      return false;
+    }
+    if (!nameRegex.test(name)) {
+      setValidateNameError('Only letters, spaces, hyphens, and apostrophes are allowed.')
+      return false;
+    }
+    return true;
+  };
+  
   const validateSSN = (ssn: string): boolean => {
     // Check basic SSN format YYMMDD-XXXX
     const ssnPattern = /^\d{6}-\d{4}$/;
     if (!ssnPattern.test(ssn)) {
+      setValidateSsnError('SSN format YYMMDD-XXXX')
       return false;
     }
-
     // Extract digits, remove the dash
     const ssnDigits = ssn.replace('-', '');
-
     // Luhn algorithm to verify the last digit
     const luhnSum = ssnDigits.split('').slice(0, 9).reduce((sum, char, index) => {
       let digit = parseInt(char, 10);
@@ -207,6 +233,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
 
     const checkDigit = parseInt(ssnDigits[9], 10);
     if ((luhnSum + checkDigit) % 10 !== 0) {
+      setValidateSsnError('SSN is invalid')
       return false;
     }
 
@@ -217,6 +244,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     // }
 
     if (!birthDate) {
+      setValidateSsnError('SSN is not having birthdate YYMMDD')
       return false;
     }
 
@@ -366,13 +394,14 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
 
     if (newStudent.paymentAllowed === 'new') {
       // set an admin notification
-      const newNotification = {
+      const newNotification: CustomNotification = {
         id: Date.now(), // Use a unique ID based on timestamp
         title: 'Student data changed',
         subtitle: 'validate',
         description: `New student ${newStudent.ssn} name: ${newStudent.name}  balance: ${newStudent.price} courses: ${newStudent.courses.map(course => course.name).join(", ")} `,
         timestamp: new Date().toISOString(),
         avatar: 'calendar',
+        read: false
       };
 
       console.log('adding notification', newNotification);
@@ -395,10 +424,10 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           student.paymentAllowed = newStatus;
           const updatedStudents = students.map((s) =>
             s.ssn === student.ssn ? student : s
-          );      
-            await setDoc(doc(db, 'students', student.ssn), student, { merge: true });
-            setStudents(updatedStudents);
-            setConfirmDialogConfig(null);
+          );
+          await setDoc(doc(db, 'students', student.ssn), student, { merge: true });
+          setStudents(updatedStudents);
+          setConfirmDialogConfig(null);
         } catch (error) {
           console.error('Error updating vacation status:', error);
         }
@@ -411,15 +440,16 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
           ? `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has notified for vacation.`
           : `Student ${student.name} (SSN: ${student.ssn}) with a balance of $${student.price} has resumed regular status.`;
 
-      const newNotification = {
+      const newNotification: CustomNotification = {
         id: Date.now(),
         title: newStatus === 'vacation' ? 'Vacation Notification' : 'Vacation Over Notification',
         subtitle: newStatus === 'vacation' ? 'Vacation Request' : 'Vacation Ended',
         description: notificationMessage,
         timestamp: new Date().toISOString(),
         avatar: newStatus === 'vacation' ? 'bell' : 'bell-remove',
+        read: false
       };
-       await addNotification(newNotification);
+      await addNotification(newNotification);
     } catch (error) {
       console.error('Error sending notification:', error);
     }
@@ -447,168 +477,195 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       enableContentPanningGesture={true}
       keyboardBehavior="interactive"
     >
- 
-        <BottomSheetScrollView style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.heading, { color: colors.primary }]}>
-              Student Information
-            </Text>
-          </View>
-          <View style={styles.userInfo}>
-            <Text>Email: {userData.email}</Text>
-            <Text>Name: {userData.name}</Text>
-            <Text>Role: {userData.role}</Text>
-          </View>
 
-          <Button
-            onPress={() => editMode ? setViewOnlyMode() : setEditMode(true)}
-            mode="contained"
-            style={styles.toggleEditButton}
+      <BottomSheetScrollView style={[styles.scrollContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.heading, { color: colors.primary }]}>
+            Student Information
+          </Text>
+        </View>
+        <View style={styles.userInfo}>
+          <Text>Email: {userData.email}</Text>
+          <Text>Name: {userData.name}</Text>
+          <Text>Role: {userData.role}</Text>
+        </View>
+
+        <Button
+          onPress={() => editMode ? setViewOnlyMode() : setEditMode(true)}
+          mode="contained"
+          style={styles.toggleEditButton}
+        >
+          {editMode ? 'Cancel edit' : 'Add new student'}
+        </Button>
+
+        <Portal>
+          <Dialog
+            visible={!!confirmDialogConfig}
+            onDismiss={() => setConfirmDialogConfig(null)}
           >
-            {editMode ? 'Cancel edit' : 'Add new student'}
-          </Button>
-
-          <TextInput
-            label="Phone Number"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            editable={editMode}
-            style={styles.input}
-            keyboardType="phone-pad"
-          />
-
-          <Portal>
-            <Dialog
-              visible={!!confirmDialogConfig}
-              onDismiss={() => setConfirmDialogConfig(null)}
-            >
-              <Dialog.Title>{confirmDialogConfig?.title}</Dialog.Title>
-              <Dialog.Content>
-                <Text>{confirmDialogConfig?.content}</Text>
-              </Dialog.Content>
-              <Dialog.Actions>
-                <Button onPress={() => setConfirmDialogConfig(null)}>Cancel</Button>
-                <Button onPress={() => {
-                  confirmDialogConfig?.onConfirm();
-                  setConfirmDialogConfig(null);
-                }}>
-                  Confirm
-                </Button>
-              </Dialog.Actions>
-            </Dialog>
-          </Portal>
-
-          {editMode && (
-            <View>
-              <TextInput
-                label="Student Name"
-                value={newStudent.name}
-                onChangeText={(text) => setNewStudent({ ...newStudent, name: text })}
-                editable={editMode}
-                style={styles.input}
-              />
-              <TextInput
-                label="SSN"
-                value={newStudent.ssn}
-                onChangeText={(text) => setNewStudent({ ...newStudent, ssn: text })}
-                editable={editMode}
-                style={styles.input}
-                placeholder='YYMMDD-XXXX'
-              />
-              <Text>Courses:</Text>
-              {courses.map((course) => (
-                <View key={course.courseId}>
-                  <TouchableOpacity
-                    style={[
-                      styles.selectableCourse,
-                      {
-                        backgroundColor: newStudent.courses.some((c) => c.courseId === course.courseId)
-                          ? colors.secondary // Theme primary color for selected course
-                          : colors.surface, // Theme surface color for unselected course
-                      },
-                    ]}
-                    onPress={() => toggleCourseSelection(course)}
-                  >
-                    <View style={styles.courseDetails}>
-                      <Text>{course.name}</Text>
-                      <Text>{course.info}</Text>
-                      <Text>{`$${course.price}`}</Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <Button
-                onPress={addOrUpdateStudent}
-                mode="contained"
-                style={styles.saveButton}
-              >
-                {selectedStudent ? 'Update Student' : 'Add'}
+            <Dialog.Title>{confirmDialogConfig?.title}</Dialog.Title>
+            <Dialog.Content>
+              <Text>{confirmDialogConfig?.content}</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setConfirmDialogConfig(null)}>Cancel</Button>
+              <Button onPress={() => {
+                confirmDialogConfig?.onConfirm();
+                setConfirmDialogConfig(null);
+              }}>
+                Confirm
               </Button>
-            </View>
-          )} 
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
 
-          {!editMode && renderEmptyStudentsMessage()}
+        <TextInput
+          label="Phone Number"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          editable={editMode}
+          style={styles.input}
+          keyboardType="phone-pad"
+          error={!!validatePhoneError}
+          activeUnderlineColor={colors.secondary}
+          onBlur={() => validatePhoneNumber(phoneNumber)}
+          onFocus={() => setValidatePhoneError('')}
+        />
+        {validatePhoneError ? (
+          <HelperText type="error" visible={!!validatePhoneError}>
+            {validatePhoneError}
+          </HelperText>
+        ) : null}
 
-         {!editMode && (
-            <FlatList
-              data={students}
-              keyExtractor={(item) => item.ssn}
-              renderItem={({ item }: ListRenderItemInfo<Student>) => (
-                <Card style={[styles.card, { backgroundColor: colors.surface }]}>
-                  <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
-                  <Card.Content>
-                    <Paragraph>
-                      Courses: {item.courses.map((course) => course.name).join(', ')}
-                      {'\n'}Price: ${item.price}
-                      {'\n'}Due Date: {item.dueDate}
-                    </Paragraph>
-                  </Card.Content>
-                  {(
-                    <Card.Actions style={styles.cardActions}>
+        {editMode && (
+          <View>
+            <TextInput
+              label="Student Name"
+              value={newStudent.name}
+              onChangeText={(text) => setNewStudent({ ...newStudent, name: text })}
+              editable={editMode}
+              style={styles.input}
+              error={!!validateNameError}
+              activeUnderlineColor={colors.secondary}
+              onBlur={() => validateStudentName(newStudent.name)}
+              onFocus={() => setValidateNameError('')}
+            />
+            {validateNameError ? (
+              <HelperText type="error" visible={!!validateNameError}>
+                {validateNameError}
+              </HelperText>
+            ) : null}
+            <TextInput
+              label="SSN"
+              value={newStudent.ssn}
+              onChangeText={(text) => setNewStudent({ ...newStudent, ssn: text })}
+              editable={editMode}
+              style={styles.input}
+              placeholder='YYMMDD-XXXX'
+              error={!!validateSsnError}
+              activeUnderlineColor={colors.secondary}
+              onBlur={() => validateSSN(newStudent.ssn)}
+              onFocus={() => setValidateSsnError('')}
+            />
+            {validateSsnError ? (
+              <HelperText type="error" visible={!!validateSsnError}>
+                {validateSsnError}
+              </HelperText>
+            ) : null}
+            <Text>Courses:</Text>
+            {courses.map((course) => (
+              <View key={course.courseId}>
+                <TouchableOpacity
+                  style={[
+                    styles.selectableCourse,
+                    {
+                      backgroundColor: newStudent.courses.some((c) => c.courseId === course.courseId)
+                        ? colors.secondary // Theme primary color for selected course
+                        : colors.surface, // Theme surface color for unselected course
+                    },
+                  ]}
+                  onPress={() => toggleCourseSelection(course)}
+                >
+                  <View style={styles.courseDetails}>
+                    <Text>{course.name}</Text>
+                    <Text>{course.info}</Text>
+                    <Text>{`$${course.price}`}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <Button
+              onPress={addOrUpdateStudent}
+              mode="contained"
+              style={styles.saveButton}
+            >
+              {selectedStudent ? 'Update Student' : 'Add'}
+            </Button>
+          </View>
+        )}
+
+        {!editMode && renderEmptyStudentsMessage()}
+
+        {!editMode && (
+          <FlatList
+            data={students}
+            keyExtractor={(item) => item.ssn}
+            renderItem={({ item }: ListRenderItemInfo<Student>) => (
+              <Card style={[styles.card, { backgroundColor: colors.surface }]}>
+                <Card.Title title={item.name} subtitle={`SSN: ${item.ssn}`} />
+                <Card.Content>
+                  <Paragraph>
+                    Courses: {item.courses.map((course) => course.name).join(', ')}
+                    {'\n'}Price: ${item.price}
+                    {'\n'}Due Date: {item.dueDate}
+                  </Paragraph>
+                </Card.Content>
+                {(
+                  <Card.Actions style={styles.cardActions}>
+                    <IconButton
+                      icon="pencil"
+                      onPress={() => {
+                        setEditMode(true);
+                        setSelectedStudent(item);
+                        setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
+                      }}
+                      style={[styles.iconButton]}
+                      iconColor={colors.primary}
+                    />
+                    {item.paymentAllowed === 'new' ? (
                       <IconButton
-                        icon="pencil"
-                        onPress={() => {
-                          setEditMode(true);
-                          setSelectedStudent(item);
-                          setNewStudent({ name: item.name, ssn: item.ssn, courses: item.courses, price: item.price, advance: item.advance, dueDate: item.dueDate, users: item.users, paymentAllowed: item.paymentAllowed, transactions: item.transactions, expoPushTokens: item.expoPushTokens });
-                        }}
+                        icon="bell"
+                        onPress={() => notifyStatusChange(item, 'vacation')}
                         style={[styles.iconButton]}
                         iconColor={colors.primary}
                       />
-                      {item.paymentAllowed === 'new' ? (
-                        <IconButton
-                          icon="bell"
-                          onPress={() => notifyStatusChange(item, 'vacation')}
-                          style={[styles.iconButton]}
-                          iconColor={colors.primary}
-                        />
-                      ) : (
-                        <IconButton
-                          icon="bell-off"
-                          onPress={() => notifyStatusChange(item, 'new')}
-                          style={[styles.iconButton]}
-                          iconColor={colors.primary}
-                        />
-                      )}
-                    </Card.Actions>
-                  )}
-                </Card>
-              )}
-            />
-          )} 
+                    ) : (
+                      <IconButton
+                        icon="bell-off"
+                        onPress={() => notifyStatusChange(item, 'new')}
+                        style={[styles.iconButton]}
+                        iconColor={colors.primary}
+                      />
+                    )}
+                  </Card.Actions>
+                )}
+              </Card>
+            )}
+          />
+        )}
 
-          <Snackbar
-            visible={snackbarVisible}
-            onDismiss={() => setSnackbarVisible(false)}
-            action={{
-              label: 'Close',
-              onPress: () => setSnackbarVisible(false),
-            }}
-            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
-          >
-            {snackbarMessage}
-          </Snackbar>
-        </BottomSheetScrollView>
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          action={{
+            label: 'Close',
+            onPress: () => setSnackbarVisible(false),
+          }}
+          style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 };
@@ -675,7 +732,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContainer: {
-    flexGrow: 1, 
+    flexGrow: 1,
     padding: 8,
     paddingBottom: 100,
   },
