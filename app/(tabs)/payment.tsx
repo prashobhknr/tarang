@@ -64,6 +64,7 @@ export default function PaymentScreen() {
   const addNotification = async (notification: CustomNotification, user: String) => {
     try {
       console.log('adding notification', user, notification)
+      notification.read = false
       const notificationsDocRef = doc(db, 'notifications', user);
       const notificationsDoc = await getDoc(notificationsDocRef);
 

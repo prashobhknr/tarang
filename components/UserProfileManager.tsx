@@ -127,6 +127,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
   // Function to create and add a notification
   const addNotification = async (notification: CustomNotification) => {
     try {
+      notification.read = false;
       const notificationsDocRef = doc(db, 'notifications', 'admin');
       const notificationsDoc = await getDoc(notificationsDocRef);
 

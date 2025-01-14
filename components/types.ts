@@ -30,4 +30,5 @@ export interface CustomNotification {
   description: string;
   timestamp: string;
   avatar: string;
+  read: boolean;
 }
