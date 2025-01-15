@@ -16,7 +16,7 @@ export interface Student {
   courses: Course[];
   price: number;
   advance: number;
-  transactions: [];
+  transactions: Transaction[];
   dueDate: string;
   users: string[];
   paymentAllowed: string;  // default 'new', other status like 'locked', 'pending' approval etc.
@@ -31,4 +31,11 @@ export interface CustomNotification {
   timestamp: string;
   avatar: string;
   read: boolean;
+}
+
+export interface Transaction {
+  amount: number;
+  datePaid: string;
+  status: string; // Example: 'PAID', 'PENDING'
+  transactionId: string;
 }

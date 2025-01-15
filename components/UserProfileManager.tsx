@@ -18,9 +18,9 @@ import { useUser } from '@/context/UserContext';
 import { doc, collection, updateDoc, getDoc, setDoc, query, where, getDocs, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ListRenderItemInfo } from 'react-native';
-import { Course, Student, CustomNotification } from '@/components/types';
+import { Course, Student, CustomNotification, Transaction } from '@/components/types';
 import { useNotification } from "@/context/NotificationContext";
-
+import { startOfMonth, endOfMonth, isWithinInterval, addDays, getDay, format } from 'date-fns';
 
 
 type Props = {
@@ -79,22 +79,17 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       setSnackbarVisible(true);
       return;
     }
-
     setPhoneNumber(userData.phoneNumber || '');
-
     const fetchStudents = async () => {
       if (!userData.students || userData.students.length === 0) {
         console.log('No students in user data.');
         setStudents([]);
         return;
       }
-
       const ssns = userData.students; // Get SSNs from user data
-
       try {
         const studentsRef = collection(db, 'students'); // Reference to 'students' collection
         const q = query(studentsRef, where('ssn', 'in', ssns));
-
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const fetchedStudents: Student[] = querySnapshot.docs.map((doc) => doc.data() as Student);
@@ -107,11 +102,9 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         console.error('Error fetching students:', error);
       }
     };
-
     if (courses.length === 0) {
       fetchCourses();
     }
-
     fetchStudents();
   }, [userData]);
 
@@ -134,14 +127,11 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       notification.read = false;
       const notificationsDocRef = doc(db, 'notifications', 'admin');
       const notificationsDoc = await getDoc(notificationsDocRef);
-
       if (notificationsDoc.exists()) {
-        // Add the notification to the existing document
         await updateDoc(notificationsDocRef, {
           notifications: arrayUnion(notification),
         });
       } else {
-        // Create a new document if it doesn't exist
         await setDoc(notificationsDocRef, {
           notifications: [notification],
         });
@@ -153,12 +143,9 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
 
   const saveFormData = async (updatedStudents: Student[]) => {
     if (!userData?.email) return;
-
     const userDocRef = doc(db, 'users', userData.email);
-
     try {
       const updatedStudentSSNs = Array.from(new Set(updatedStudents.map((student) => student.ssn)));
-
       const updatedUserData = {
         ...userData,
         phoneNumber,
@@ -177,16 +164,40 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     const updatedCourses = isSelected
       ? newStudent.courses.filter((c) => c.courseId !== course.courseId)
       : [...newStudent.courses, course];
-
-    const { totalPrice, maxDueDate } = calculateCourseSummary(updatedCourses);
+    const { totalPrice, maxDueDate } = calculateCourseSummary(updatedCourses, newStudent.transactions);
     setNewStudent({ ...newStudent, courses: updatedCourses, price: totalPrice, dueDate: maxDueDate });
   };
 
-  const calculateCourseSummary = (courses: Course[]) => {
-    const totalPrice = courses.reduce((acc, course) => acc + course.price, 0);
-    const maxDueDate = courses.reduce((latest, course) => {
-      return new Date(course.dueDate) > new Date(latest) ? course.dueDate : latest;
-    }, '1970-01-01');
+  const getFirstWeekendDayOfMonth = (weekday: number) => {
+    // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const firstOfMonth = startOfMonth(new Date());  // Get the first day of the current month
+    let daysToAdd = (weekday - getDay(firstOfMonth) + 7) % 7;
+    // If the first day is later in the week, skip to the next occurrence
+    return addDays(firstOfMonth, daysToAdd);
+  };
+
+  const calculateCourseSummary = (courses: Course[], transactions: Transaction[]) => {
+    const totalCoursePrice = courses.reduce((acc, course) => acc + course.price, 0);
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const totalPaidThisMonth = transactions
+      .filter(
+        (transaction) =>
+          transaction.status === 'PAID' &&
+          isWithinInterval(new Date(transaction.datePaid), { start: monthStart, end: monthEnd })
+      )
+      .reduce((acc, transaction) => acc + transaction.amount, 0);
+    const totalPrice = Math.max(0, totalCoursePrice - totalPaidThisMonth);
+
+    const firstWednesday = getFirstWeekendDayOfMonth(3); // 3 -> Wednesday
+    const firstThursday = getFirstWeekendDayOfMonth(4);  // 4 -> Thursday
+    const firstFriday = getFirstWeekendDayOfMonth(5);  // 5 -> Friday
+    // Pick the earliest day of Wednesday, Thursday, or Friday
+    const dueDate = [firstWednesday, firstThursday, firstFriday].reduce((earliest, current) => {
+      return new Date(current) < new Date(earliest) ? current : earliest;
+    });
+    const maxDueDate = format(new Date(dueDate), 'yyyy-MM-dd');
 
     return { totalPrice, maxDueDate };
   };
@@ -200,8 +211,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     return true;
   };
 
-  const validateStudentName = (name:string) => {
-    // Regular expression for name validation
+  const validateStudentName = (name: string) => {
     const nameRegex = /^[a-zA-Z\s'-]{2,50}$/;
     if (!name || name.trim() === '') {
       setValidateNameError('Name cannot be empty.')
@@ -213,41 +223,30 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     }
     return true;
   };
-  
+
   const validateSSN = (ssn: string): boolean => {
-    // Check basic SSN format YYMMDD-XXXX
     const ssnPattern = /^\d{6}-\d{4}$/;
     if (!ssnPattern.test(ssn)) {
       setValidateSsnError('SSN format YYMMDD-XXXX')
       return false;
     }
-    // Extract digits, remove the dash
     const ssnDigits = ssn.replace('-', '');
-    // Luhn algorithm to verify the last digit
     const luhnSum = ssnDigits.split('').slice(0, 9).reduce((sum, char, index) => {
       let digit = parseInt(char, 10);
       if (index % 2 === 0) digit *= 2; // Double every other digit
       if (digit > 9) digit -= 9; // Subtract 9 if the digit is greater than 9
       return sum + digit;
     }, 0);
-
     const checkDigit = parseInt(ssnDigits[9], 10);
     if ((luhnSum + checkDigit) % 10 !== 0) {
       setValidateSsnError('SSN is invalid')
       return false;
     }
-
-    // Validate age (less than 18 years old)
     const birthDate = extractBirthDate(ssnDigits);
-    // if (!birthDate || !isUnder18(birthDate)) {
-    //   return false;
-    // }
-
     if (!birthDate) {
       setValidateSsnError('SSN is not having birthdate YYMMDD')
       return false;
     }
-
     return true;
   };
 
@@ -256,31 +255,13 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     const year = parseInt(ssnDigits.substring(0, 2), 10);
     const month = parseInt(ssnDigits.substring(2, 4), 10);
     const day = parseInt(ssnDigits.substring(4, 6), 10);
-
-    // Handle YY -> full year (1900s or 2000s)
     const currentYear = new Date().getFullYear();
     const fullYear = year + (year >= currentYear % 100 ? 1900 : 2000); // Assumes birthdates are in the 1900s or 2000s
-
     if (month < 1 || month > 12 || day < 1 || day > 31) {
       return null; // Invalid date
     }
-
     return new Date(fullYear, month - 1, day); // Month is 0-indexed
   };
-
-  // Function to check if the person is under 18
-  const isUnder18 = (birthDate: Date): boolean => {
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-
-    // Check if the birthday has passed this year
-    const hasBirthdayPassed =
-      today.getMonth() > birthDate.getMonth() ||
-      (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-
-    return age < 18 || (age === 18 && !hasBirthdayPassed);
-  };
-
 
   const addOrUpdateStudent = async () => {
     console.log('selected', selectedStudent?.ssn)
@@ -303,7 +284,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
       return;
     }
 
-
     newStudent.expoPushTokens = newStudent.expoPushTokens ? newStudent.expoPushTokens : []
     // Ensure the user email is in the 'users' array
     const updatedStudent: Student = {
@@ -316,10 +296,8 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         : [...newStudent.users, userData.email] // Add the current user's email to users list
     };
 
-
     let updatedStudents: Student[];
     if (selectedStudent) {
-
       // Handle logic for updating a student with a new SSN
       if (selectedStudent.ssn !== newStudent.ssn) {
         setSnackbarMessage('You cannot change the SSN of an existing student.');
@@ -340,7 +318,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
     } else {
       console.log('adding new student');
       // New student with a new SSN
-
       //check if it is already added
       const ssnExists = students.some((student) => student.ssn === newStudent.ssn);
       if (!selectedStudent && ssnExists) {
@@ -348,7 +325,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         setSnackbarVisible(true);
         return;
       }
-
       // Check for an existing student with the same SSN in Firestore
       const existingStudentSnapshot = await getDoc(doc(db, 'students', newStudent.ssn));
       if (existingStudentSnapshot.exists()) {
@@ -373,7 +349,6 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         });
         return;
       }
-
       updatedStudents = [...students, updatedStudent];
       try {
         await setDoc(doc(db, 'students', updatedStudent.ssn), updatedStudent);
@@ -403,9 +378,7 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
         avatar: 'calendar',
         read: false
       };
-
       console.log('adding notification', newNotification);
-
       await addNotification(newNotification);
     }
   }

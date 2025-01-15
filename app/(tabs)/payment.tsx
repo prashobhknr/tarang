@@ -108,11 +108,11 @@ export default function PaymentScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        setIsLoading(false);
         setSnackbarMessage('Your payment was successfully initiated.');
         setSnackbarVisible(true);
         setTimeout(async () => {
           fetchStudents();
+          setIsLoading(false);
         }, 10000);
 
         // set an admin notification
@@ -188,7 +188,7 @@ export default function PaymentScreen() {
         {snackbarMessage}
       </Snackbar>
 
-      {selectedStudent?.paymentAllowed === 'vacation' ? (
+      {selectedStudent?.paymentAllowed === '-vacation--todo-' ? (
         <View style={[styles.balanceContainer, { backgroundColor: colors.surface }]}>
           <IconButton icon="bell" size={40} iconColor={colors.primary} />
           <Text style={[{ color: colors.onBackground }]}>
@@ -209,7 +209,7 @@ export default function PaymentScreen() {
         </View>
       )}
 
-      {selectedStudent?.paymentAllowed !== 'vacation' && (
+      {selectedStudent?.paymentAllowed !== '-vacation--todo-' && (
         <Button
           label="Pay with Swish"
           theme="swish"
