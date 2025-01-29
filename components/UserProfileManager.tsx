@@ -626,18 +626,20 @@ const UserProfileManager = ({ isVisible, onClose }: Props) => {
             )}
           />
         )}
+        <Portal>
 
-        <Snackbar
-          visible={snackbarVisible}
-          onDismiss={() => setSnackbarVisible(false)}
-          action={{
-            label: 'Close',
-            onPress: () => setSnackbarVisible(false),
-          }}
-          style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
-        >
-          {snackbarMessage}
-        </Snackbar>
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            action={{
+              label: 'Close',
+              onPress: () => setSnackbarVisible(false),
+            }}
+            style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
+          >
+            {snackbarMessage}
+          </Snackbar>
+        </Portal>
       </BottomSheetScrollView>
     </BottomSheet>
   );

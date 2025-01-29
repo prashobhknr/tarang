@@ -149,8 +149,6 @@ export default function Index() {
         key={key}
         ref={webViewRef}
         source={{ uri: url }}
-        cacheEnabled={true}
-        cacheMode="LOAD_CACHE_ELSE_NETWORK"
         onLoadEnd={handleLoadEnd}
         onError={handleError}
         sharedCookiesEnabled={true}
