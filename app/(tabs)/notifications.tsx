@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, StatusBar, Platform } from 'react-native';
-import { Card, Text, Avatar, Divider, useTheme, IconButton, Button } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+} from 'react-native';
+import {
+  Card,
+  Text,
+  Avatar,
+  Divider,
+  useTheme,
+  IconButton,
+  Button,
+} from 'react-native-paper';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useUser } from '@/context/UserContext';
@@ -10,58 +26,120 @@ import { CustomNotification } from '@/components/types';
 export default function NotificationsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userData, notifications, setNotifications} = useUser();
+  const { userData, notifications, setNotifications } = useUser();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (userData) {
-        try {
-          let notificationsDocRef;
+  const getNotificationsDocRef = (userData: any) => {
+    if (!userData) {
+      throw new Error('User data is required to fetch notifications.');
+    }
 
-          // For admin users, fetch notifications from 'admin' document
-          if (userData.role === 'admin') {
-            notificationsDocRef = doc(db, 'notifications', 'admin');
+    if (userData.role === 'admin') {
+      return doc(db, 'notifications', 'admin');
+    } else {
+      return doc(db, 'notifications', userData.email);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    if (userData) {
+      try {
+        setRefreshing(true);
+        console.log('reading notifications')
+        const notificationsDocRef = getNotificationsDocRef(userData);
+        const notificationsSnap = await getDoc(notificationsDocRef);
+
+        if (notificationsSnap.exists()) {
+          const data = notificationsSnap.data();
+          const currentTimestamp = new Date().getTime();
+          const oneMonthAgo = currentTimestamp - 30 * 24 * 60 * 60 * 1000; // Timestamp for one month ago
+
+          // Filter out notifications older than one month
+          const filteredNotifications = (data.notifications || []).filter(
+            (notification: CustomNotification) => {
+              const notificationTimestamp = new Date(notification.timestamp).getTime();
+              return notificationTimestamp >= oneMonthAgo;
+            }
+          );
+
+          // // Sort notifications by timestamp (most recent first)
+          const sortedNotifications = filteredNotifications;
+          // const sortedNotifications = filteredNotifications.sort(
+          //   (a: CustomNotification, b: CustomNotification) =>
+          //     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          // );
+
+          // Update Firestore with the filtered notifications if any were removed
+          if (filteredNotifications.length !== (data.notifications || []).length) {
+            await updateDoc(notificationsDocRef, { notifications: filteredNotifications });
           }
-          // For regular users, fetch notifications from their specific email ID document
-          else {
-            notificationsDocRef = doc(db, 'notifications', userData.email);
-          }
 
-          const notificationsSnap = await getDoc(notificationsDocRef);
-
-          if (notificationsSnap.exists()) {
-            const data = notificationsSnap.data();
-            setNotifications(data.notifications || []);
-          } else {
-            console.warn('No notifications found.');
-            setNotifications([]);
-          }
-        } catch (error) {
-          console.error('Error fetching notifications:', error);
-        } finally {
-          setLoading(false);
+          // Update local state
+          setNotifications(sortedNotifications);
+        } else {
+          console.warn('No notifications found.');
+          setNotifications([]);
         }
-      } else {
-        setLoading(false); // No user data, stop loading
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    };
+    } else {
+      setLoading(false); // No user data, stop loading
+      
+    }
+  };
 
-    fetchNotifications();
-  }, [userData]);
+  // useEffect(() => {
+  //   fetchNotifications();
+  // }, [userData]);
 
-  const handleDismiss = async (notificationId: number) => {
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotifications();
+    }, [])
+  );
+
+  const toggleNotificationReadStatus = async (notificationId: number) => {
     try {
-      const notificationsDocRef = doc(db, 'notifications', 'admin');
+      const notificationsDocRef = getNotificationsDocRef(userData);
       const notificationsSnap = await getDoc(notificationsDocRef);
 
       if (notificationsSnap.exists()) {
         const data = notificationsSnap.data();
-        const updatedNotifications = data.notifications.filter((notification: CustomNotification) => notification.id !== notificationId);
-
-        await updateDoc(notificationsDocRef, {
-          notifications: updatedNotifications,
+        const updatedNotifications = data.notifications.map((notification: CustomNotification) => {
+          if (notification.id === notificationId) {
+            return { ...notification, read: !notification.read }; // Toggle read status
+          }
+          return notification;
         });
+
+        await updateDoc(notificationsDocRef, { notifications: updatedNotifications });
+
+        // Update local state
+        setNotifications(updatedNotifications);
+      }
+    } catch (error) {
+      console.error('Error toggling notification read status:', error);
+    }
+  };
+
+
+  const handleDismiss = async (notificationId: number) => {
+    try {
+      const notificationsDocRef = getNotificationsDocRef(userData);
+      const notificationsSnap = await getDoc(notificationsDocRef);
+
+      if (notificationsSnap.exists()) {
+        const data = notificationsSnap.data();
+        const updatedNotifications = data.notifications.filter(
+          (notification: CustomNotification) => notification.id !== notificationId
+        );
+
+        await updateDoc(notificationsDocRef, { notifications: updatedNotifications });
 
         // Update local state to reflect changes
         setNotifications(updatedNotifications);
@@ -89,6 +167,64 @@ export default function NotificationsScreen() {
     );
   }
 
+  const renderNotification = ({ item }: { item: CustomNotification | undefined }) => {
+    if (!item) {
+      return null; 
+    }
+    return (
+      <Card
+        style={[
+          styles.card,
+          {
+            backgroundColor: item.read
+              ? theme.colors.surfaceVariant
+              : theme.colors.surface,
+          },
+        ]}
+      >
+        <Pressable onPress={() => toggleNotificationReadStatus(item.id)}>
+          <Card.Title
+            title={item.title}
+            subtitle={item.subtitle}
+            left={(props) => (
+              <Avatar.Icon
+                {...props}
+                icon={item.avatar || 'bell'}
+                style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
+              />
+            )}
+            right={() => (
+              <>
+                <IconButton
+                  icon={item.read ? 'eye-off-outline' : 'eye-outline'} 
+                  size={24}
+                  onPress={() => toggleNotificationReadStatus(item.id)} 
+                  style={styles.toggleReadButton}
+                  iconColor={theme.colors.primary}
+                />
+                <IconButton
+                  icon="trash-can-outline"
+                  size={24}
+                  onPress={() => handleDismiss(item.id)}
+                  style={styles.dismissButton}
+                  iconColor={theme.colors.primary}
+                />
+              </>
+            )}
+          />
+          <Card.Content>
+            <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
+              {item.description}
+            </Text>
+            <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
+              {new Date(item.timestamp).toLocaleString() || 'Unknown'}
+            </Text>
+          </Card.Content>
+        </Pressable>
+      </Card>
+    )
+  }
+
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -98,53 +234,17 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
-      backgroundColor: theme.colors.background,
-    }]}>
-      {notifications.length === 0 ? (
-        <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
-          No notifications to display.
-        </Text>
-      ) : (
-        notifications.map((notification: CustomNotification) => (
-          <React.Fragment key={`${notification.id}-${theme.dark}`}>
-            <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-              <Card.Title
-                title={notification.title}
-                subtitle={notification.subtitle}
-                left={(props) => (
-                  <Avatar.Icon
-                    {...props}
-                    icon={notification.avatar || 'bell'} // Default to 'bell' if no avatar provided
-                    style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-                  />
-                )}
-                right={() => (
-                  <IconButton
-                    icon="trash-can-outline" // Trash icon to delete the notification
-                    size={24}
-                    onPress={() => handleDismiss(notification.id)}
-                    style={styles.dismissButton}
-                    iconColor={theme.colors.primary}
-                  />
-                )}
-              />
-              <Card.Content>
-                <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
-                  {notification.description}
-                </Text>
-                <Text style={[styles.timestamp, { color: theme.colors.onSurfaceVariant }]}>
-                  {new Date(notification.timestamp).toLocaleString() || 'Unknown'}
-                </Text>
-              </Card.Content>
-            </Card>
-            <Divider style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
-          </React.Fragment>
-        ))
-      )}
-    </ScrollView>
+    <FlatList
+    data={[...notifications].reverse()}
+      renderItem={renderNotification}
+      keyExtractor={(item) => item.id.toString()}
+      // onRefresh={fetchNotifications}
+      refreshing={refreshing}
+      contentContainerStyle={styles.container}
+      ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>No notifications to display.</Text>}
+    />
   );
+
 }
 
 const styles = StyleSheet.create({
@@ -155,7 +255,7 @@ const styles = StyleSheet.create({
   card: {
     marginVertical: 5,
     borderRadius: 10,
-    elevation: 5, // Increased elevation for a more professional card
+    elevation: 5,
   },
   avatar: {
     marginRight: 10,
@@ -168,7 +268,7 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     marginTop: 5,
-    color: '#6e6e6e',
+    paddingBottom: 6
   },
   divider: {
     marginVertical: 10,
@@ -198,8 +298,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  toggleReadButton: {
+    borderRadius: 50,
+    padding: 5,
+  },
   dismissButton: {
-    borderRadius: 50, // Circular button for a cleaner look
+    borderRadius: 50,
     padding: 5,
   },
 });

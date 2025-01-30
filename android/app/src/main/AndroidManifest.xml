@@ -25,9 +25,15 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="myapp"/>
+        <data android:scheme="tarang"/>
         <data android:scheme="com.auth0.tarang"/>
         <data android:scheme="exp+tarang"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="swish"/>
       </intent-filter>
     </activity>
     <activity android:name="com.auth0.android.provider.RedirectActivity" tools:node="replace" android:exported="true">
@@ -41,6 +47,15 @@
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="dev-ekunvd3grax376fx.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
+        <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>
         <data android:scheme="com.auth0.tarang.auth0" android:host="tarangschool.eu.auth0.com"/>

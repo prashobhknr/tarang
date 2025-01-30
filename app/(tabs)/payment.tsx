@@ -1,13 +1,14 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, StatusBar, Platform, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, StatusBar, Platform, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme, IconButton, Chip, Button as PaperButton, Snackbar } from 'react-native-paper'; // Import useTheme for dynamic theming
+import { useTheme, IconButton, Chip, Button as PaperButton, Snackbar,Portal } from 'react-native-paper'; // Import useTheme for dynamic theming
 import Button from '@/components/Button'; // Import your Button component
 import { useUser } from '@/context/UserContext';
 import { doc, getDocs, collection, query, where, arrayUnion, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { Student, CustomNotification } from '@/components/types';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import * as Linking from 'expo-linking';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -19,7 +20,23 @@ export default function PaymentScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const [hasCallBackExecuted, setHasCallBackExecuted] = useState(false); 
+  const snapPoints = useMemo(() => ['50%', '95%'], []);
+
+  const url = Linking.useURL();
+
+  if (url) {
+    const { hostname, path, queryParams } = Linking.parse(url);
+    if (queryParams?.callback === "swish" && !hasCallBackExecuted) {
+      console.log("Swish callback detected. Running fetch logic...");
+      setTimeout(async () => {
+        await fetchStudents();
+        setIsLoading(false);
+      }, 5000);
+      setHasCallBackExecuted(true);
+     
+    }
+  }
 
   useEffect(() => {
     if (!userData?.email) {
@@ -60,30 +77,6 @@ export default function PaymentScreen() {
     }
   };
 
-  // Function to create and add a notification
-  const addNotification = async (notification: CustomNotification, user: String) => {
-    try {
-      console.log('adding notification', user, notification)
-      const notificationsDocRef = doc(db, 'notifications', user);
-      const notificationsDoc = await getDoc(notificationsDocRef);
-
-      if (notificationsDoc.exists()) {
-        // Add the notification to the existing document
-        await updateDoc(notificationsDocRef, {
-          notifications: arrayUnion(notification),
-        });
-      } else {
-        // Create a new document if it doesn't exist
-        await setDoc(notificationsDocRef, {
-          notifications: [notification],
-        });
-      }
-    } catch (error) {
-      console.error('Error adding notification:', error);
-    }
-  };
-
-
   const handlePayment = async () => {
     if (isLoading) return;
     setIsLoading(true);
@@ -107,25 +100,16 @@ export default function PaymentScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        setIsLoading(false);
-        setSnackbarMessage('Your payment was successfully initiated.');
-        setSnackbarVisible(true);
-        setTimeout(async () => {
-          fetchStudents();
-        }, 10000);
-
-        // set an admin notification
-        const newNotification = {
-          id: Date.now(), // Use a unique ID based on timestamp
-          title: 'New Payment ',
-          subtitle: 'payment',
-          description: `New payment amount ${paymentRequestData.amount} for student: ${selectedStudent?.name}  from: ${userData.name}`,
-          timestamp: new Date().toISOString(),
-          avatar: 'cash',
-        };
-        await addNotification(newNotification, 'admin');
-        await addNotification(newNotification, userData.email);
-
+        const token = data.token; // Get token from backend
+        const swishURL = `swish://paymentrequest?token=${token}&callbackurl=${encodeURIComponent('tarang://payment?callback=swish')}`;
+        console.log('calling swish deeplink ', swishURL)
+        if (await Linking.canOpenURL(swishURL)) {
+          setHasCallBackExecuted(false);
+          await Linking.openURL(swishURL);
+        } else {
+          setSnackbarMessage('Swish app is not installed. Please install it and try again.');
+          setSnackbarVisible(true);
+        }
       } else {
         const errorData = await response.json();
         setSnackbarMessage('There was an error processing your payment. Please try again.');
@@ -175,19 +159,21 @@ export default function PaymentScreen() {
 
   return (
     <View style={[styles.container, {
-      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
+
       backgroundColor: colors.background
     }]}>
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        duration={Snackbar.DURATION_SHORT}
-        style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
-      >
-        {snackbarMessage}
-      </Snackbar>
+      <Portal>
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={Snackbar.DURATION_SHORT}
+          style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </Portal>
 
-      {selectedStudent?.paymentAllowed === 'vacation' ? (
+      {selectedStudent?.paymentAllowed === '-vacation--todo-' ? (
         <View style={[styles.balanceContainer, { backgroundColor: colors.surface }]}>
           <IconButton icon="bell" size={40} iconColor={colors.primary} />
           <Text style={[{ color: colors.onBackground }]}>
@@ -208,7 +194,7 @@ export default function PaymentScreen() {
         </View>
       )}
 
-      {selectedStudent?.paymentAllowed !== 'vacation' && (
+      {selectedStudent?.paymentAllowed !== '-vacation--todo-' && (
         <Button
           label="Pay with Swish"
           theme="swish"
@@ -217,20 +203,6 @@ export default function PaymentScreen() {
           disabled={!selectedStudent || selectedStudent.price === 0}
         />
       )}
-
-      {/* <View
-        style={[
-          styles.balanceContainer,
-          { backgroundColor: colors.surface, shadowColor: colors.primary },
-        ]}
-      >
-        <Text style={[styles.balanceText, { color: colors.onBackground }]}>Balance</Text>
-        <Text style={[styles.balanceAmount, { color: colors.onBackground }]}>
-          {formattedBalance} SEK
-        </Text>
-      </View>
-      <Button label="Pay with Swish" theme="swish" onPress={handlePayment} isLoading={isLoading}
-        disabled={!selectedStudent || selectedStudent.price === 0} /> */}
 
       {/* Add Selected Student Label */}
       <View style={styles.selectedStudentContainer}>

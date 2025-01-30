@@ -9,7 +9,8 @@ import {
     useTheme,
     Snackbar,
     Text,
-    Searchbar, // Import the Searchbar
+    Searchbar,
+    Portal, // Import the Searchbar
 } from 'react-native-paper';
 import { collection, getDocs, setDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -80,11 +81,11 @@ const StudentsPage = () => {
 
     const togglePaymentAllowed = (student: Student) => {
         const updatedStudent = { ...student, paymentAllowed: student.paymentAllowed === 'locked' ? 'new' : 'locked' };
-    
+
         // Update the student in state
         const updatedStudents = students.map(s => s.ssn === student.ssn ? updatedStudent : s);
         setStudents(updatedStudents);
-        
+
         // Optionally update the database (if required)
         updateDoc(doc(db, 'students', student.ssn), { paymentAllowed: updatedStudent.paymentAllowed });
     };
@@ -200,18 +201,18 @@ const StudentsPage = () => {
 
     return (
         <View style={[styles.container, {
-              paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
-              backgroundColor: colors.background
-            }]}>
+            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : '15%',
+            backgroundColor: colors.background
+        }]}>
             <Text style={styles.heading}>Manage Students</Text>
 
             {!editMode && (
-            <Searchbar
-                placeholder="Search for student"
-                onChangeText={setSearchQuery}
-                value={searchQuery}
-                style={styles.searchbar}
-            />
+                <Searchbar
+                    placeholder="Search for student"
+                    onChangeText={setSearchQuery}
+                    value={searchQuery}
+                    style={styles.searchbar}
+                />
             )}
 
             <Button
@@ -262,18 +263,19 @@ const StudentsPage = () => {
                     renderItem={({ item }) => renderStudentItem(item)}
                 />
             )}
-
-            <Snackbar
-                visible={snackbarVisible}
-                onDismiss={() => setSnackbarVisible(false)}
-                action={{
-                    label: 'Close',
-                    onPress: () => setSnackbarVisible(false),
-                }}
-                style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]} 
-            >
-                {snackbarMessage}
-            </Snackbar>
+            <Portal>
+                <Snackbar
+                    visible={snackbarVisible}
+                    onDismiss={() => setSnackbarVisible(false)}
+                    action={{
+                        label: 'Close',
+                        onPress: () => setSnackbarVisible(false),
+                    }}
+                    style={[{ backgroundColor: colors.tertiary }, { marginBottom: 160 }]}
+                >
+                    {snackbarMessage}
+                </Snackbar>
+            </Portal>
         </View>
     );
 };

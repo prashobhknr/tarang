@@ -39,7 +39,7 @@ export default function CourseCRUD({ isVisible, onClose }: Props) {
   const [showForm, setShowForm] = useState(false);
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["50%", "90%"], []);
+  const snapPoints = useMemo(() => ["50%", "95%"], []);
   const docRef = doc(db, 'users', 'catalogue'); // Reference Firestore document
 
   React.useEffect(() => {

@@ -11,6 +11,7 @@ import { useThemeSwitcher } from '@/context/ThemeContext';
 import CourseCRUD from '@/components/CourseCRUD';
 import UserProfileManager from '@/components/UserProfileManager';
 import { useNotification } from "@/context/NotificationContext";
+import { CustomNotification } from '@/components/types';
 
 export default function ProfileScreen() {
   const { authorize, clearSession, user, error, isLoading } = useAuth0();
@@ -18,9 +19,7 @@ export default function ProfileScreen() {
   const [isProfileEdit, setIsProfileEdit] = useState(false);
   const { expoPushToken } = useNotification();
 
-
-  const { setUserData } = useUser();
-  const { userData } = useUser();
+  const { userData ,setUserData , setNotifications} = useUser();
   const { colors, fonts } = useTheme();
   const { theme, toggleTheme } = useThemeSwitcher();
 
@@ -32,6 +31,7 @@ export default function ProfileScreen() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserData(userData);
+          fetchNotifications(userData);
         } else {
           saveUserToFirestore(user);
         }
@@ -40,6 +40,61 @@ export default function ProfileScreen() {
       console.error('Error fetching user role:', error);
     }
   };
+
+  const getNotificationsDocRef = (userData: any) => {
+    if (!userData) {
+      throw new Error('User data is required to fetch notifications.');
+    }
+
+    if (userData.role === 'admin') {
+      return doc(db, 'notifications', 'admin');
+    } else {
+      return doc(db, 'notifications', userData.email);
+    }
+  };
+
+  const fetchNotifications = async (userData: any) => {
+      if (userData) {
+        try {
+          console.log('reading notifications from profilr')
+          const notificationsDocRef = getNotificationsDocRef(userData);
+          const notificationsSnap = await getDoc(notificationsDocRef);
+  
+          if (notificationsSnap.exists()) {
+            const data = notificationsSnap.data();
+            const currentTimestamp = new Date().getTime();
+            const oneMonthAgo = currentTimestamp - 30 * 24 * 60 * 60 * 1000; 
+            // Filter out notifications older than one month
+            const filteredNotifications = (data.notifications || []).filter(
+              (notification: CustomNotification) => {
+                const notificationTimestamp = new Date(notification.timestamp).getTime();
+                return notificationTimestamp >= oneMonthAgo;
+              }
+            );
+  
+            // // Sort notifications by timestamp (most recent first)
+            const sortedNotifications = filteredNotifications;
+            // const sortedNotifications = filteredNotifications.sort(
+            //   (a: CustomNotification, b: CustomNotification) =>
+            //     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            // );
+  
+            // Update Firestore with the filtered notifications if any were removed
+            if (filteredNotifications.length !== (data.notifications || []).length) {
+              await updateDoc(notificationsDocRef, { notifications: filteredNotifications });
+            }
+  
+            // Update local state
+            setNotifications(sortedNotifications);
+          } else {
+            console.warn('No notifications found.');
+            setNotifications([]);
+          }
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+        } 
+      } 
+    };
 
 
   const saveUserToFirestore = async (user: any) => {

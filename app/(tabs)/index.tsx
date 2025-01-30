@@ -1,18 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, StatusBar, Platform, Alert } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, StatusBar, Platform, Alert, BackHandler } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Asset } from 'expo-asset';
-import { useTheme, ActivityIndicator, Text, Button } from 'react-native-paper';
+import { useTheme, ActivityIndicator, Text, Button, FAB } from 'react-native-paper';
 import { useNotification } from "@/context/NotificationContext";
 import * as Updates from "expo-updates";
+import { useFocusEffect } from 'expo-router';
 
 export default function Index() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
-  const [key, setKey] = useState('loading');
+  const [key, setKey] = useState(0);
   const [localHtmlUri, setLocalHtmlUri] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const { notification, expoPushToken, error } = useNotification();
+  const homeUrl = 'https://tarangschool.com';
+  const [url, setUrl] = useState(homeUrl);
+
+  const webViewRef = useRef<WebView>(null);
+  const [canGoBack, setCanGoBack] = useState(false);
+
 
 
   useEffect(() => {
@@ -25,6 +32,29 @@ export default function Index() {
     loadLocalHtml();
   }, []);
 
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (canGoBack && webViewRef.current) {
+        webViewRef.current.goBack(); // Navigate back in WebView
+        return true; // Prevent default back action
+      } else {
+        Alert.alert("Exit App", "Are you sure you want to exit the app?", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Exit", onPress: () => BackHandler.exitApp() },
+        ]);
+        return true;
+      }
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+
+    return () => backHandler.remove();
+  }, [canGoBack]);
+
+
   const handleError = () => {
     setIsError(true);
   };
@@ -32,7 +62,7 @@ export default function Index() {
   const handleLoadEnd = () => {
     if (loading) {
       setLoading(false);
-      setKey('loaded');
+      setKey(1);
     }
   };
 
@@ -82,7 +112,7 @@ export default function Index() {
   return (
     <View style={[styles.container, {
       backgroundColor: colors.background,
-      paddingTop: Platform.OS == "android" ? StatusBar.currentHeight : StatusBar.currentHeight,
+
     }]}>
 
       {notification &&
@@ -117,9 +147,8 @@ export default function Index() {
       )}
       <WebView
         key={key}
-        source={isError && localHtmlUri ? { uri: localHtmlUri } : { uri: 'https://tarangschool.com' }}
-        cacheEnabled={true}
-        cacheMode="LOAD_CACHE_ELSE_NETWORK"
+        ref={webViewRef}
+        source={{ uri: url }}
         onLoadEnd={handleLoadEnd}
         onError={handleError}
         sharedCookiesEnabled={true}
@@ -127,8 +156,18 @@ export default function Index() {
         originWhitelist={['*']}
         javaScriptEnabled={true}
         domStorageEnabled={true}
+        onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
+        allowsBackForwardNavigationGestures={true} 
         style={styles.webView}
       />
+      {Platform.OS === 'ios' && canGoBack && (
+        <FAB
+          icon="arrow-left"
+          onPress={() => webViewRef.current?.goBack()}
+          style={styles.fab}
+          color={colors.primary}
+        />
+      )}
     </View>
   );
 }
@@ -149,5 +188,10 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20
   },
 });

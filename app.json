@@ -5,12 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "tarang",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "swish"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSExceptionDomains": {
@@ -42,6 +45,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./config/withSwishDeepLinking.ts",
       [
         "react-native-auth0",
         {
