@@ -34,6 +34,7 @@ export interface CustomNotification {
 }
 
 export interface Transaction {
+  dateCreated: string;
   amount: number;
   datePaid: string;
   status: string; // Example: 'PAID', 'PENDING'

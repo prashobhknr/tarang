@@ -265,7 +265,7 @@ export default function PaymentScreen() {
           renderItem={({ item }) => (
             <View style={[styles.transactionItem, { backgroundColor: colors.surface }]}>
               <Text style={[styles.transactionDate, { color: colors.onSurfaceVariant }]}>
-                {new Date(item.datePaid).toLocaleDateString()}
+                {new Date(item.datePaid?item.datePaid:item.dateCreated).toLocaleDateString()}
               </Text>
               <Text style={[styles.transactionAmount, { color: colors.onBackground }]}>
                 ${item.amount}
